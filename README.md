@@ -1,234 +1,227 @@
 # notebooklm-skill
 
-> NotebookLM does the research, Claude writes the content.
+> NotebookLM 做研究，Claude 寫內容。
 
-The only tool that connects trending topic discovery -> NotebookLM deep research -> AI content creation -> multi-platform publishing. Works as a Claude Code Skill or standalone MCP server.
+唯一串接「趨勢發現 → NotebookLM 深度研究 → AI 內容創作 → 多平台發布」的工具。可作為 Claude Code Skill 或獨立 MCP Server 使用。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## What is this?
+## 這是什麼？
 
-**notebooklm-skill** bridges NotebookLM's research capabilities with Claude's content generation. Feed it URLs, PDFs, or trending topics. It creates a NotebookLM notebook, runs deep research queries, and hands structured findings to Claude for polished output -- articles, social posts, newsletters, podcasts, or any format you need.
+**notebooklm-skill** 將 NotebookLM 的研究能力與 Claude 的內容生成串接起來。餵入網址、PDF 或熱門話題，它會建立 NotebookLM 筆記本、執行深度研究查詢，再將結構化結果交給 Claude 產出文章、社群貼文、電子報、Podcast 等任何格式。
 
-Built on [notebooklm-py](https://pypi.org/project/notebooklm-py/) v0.3.4 -- pure async Python, no OAuth setup needed.
+基於 [notebooklm-py](https://pypi.org/project/notebooklm-py/) v0.3.4 — 純 async Python，無需 OAuth 設定。
 
 ```
-Sources (URLs, PDFs)          NotebookLM                Claude               Artifacts & Platforms
+來源 (URLs, PDFs)            NotebookLM                Claude               產出物 & 平台
 +-----------------+    +------------------+    +-----------------+    +----------------------+
-| Web articles    |--->| Create notebook  |--->| Draft article   |--->| Blog / CMS           |
-| Research papers |    | Add sources      |    | Social posts    |    | Threads / X          |
-| YouTube videos  |    | Ask questions    |    | Newsletter      |    | Newsletter           |
-| Trending topics |    | Extract insights |    | Any format      |    | Any platform         |
+| 網頁文章        |--->| 建立筆記本       |--->| 撰寫文章        |--->| 部落格 / CMS          |
+| 研究論文        |    | 加入來源         |    | 社群貼文        |    | Threads / X           |
+| YouTube 影片    |    | 提問研究         |    | 電子報          |    | Newsletter            |
+| 熱門話題        |    | 萃取洞見         |    | 任何格式        |    | 任何平台              |
 +-----------------+    +------------------+    +-----------------+    +----------------------+
-     Phase 1                Phase 2                Phase 3                  Phase 4
+     階段 1                 階段 2                  階段 3                   階段 4
                                 |
                                 v
                        +------------------+
-                       | Generate artifacts|
-                       | Audio (podcast)   |
-                       | Video             |
-                       | Slides            |
-                       | Report            |
-                       | Quiz              |
-                       | Flashcards        |
-                       | Mind map          |
-                       | Infographic       |
-                       | Data table        |
-                       | Study guide       |
+                       | 生成產出物        |
+                       | 音檔 (Podcast)    |
+                       | 影片              |
+                       | 投影片            |
+                       | 報告              |
+                       | 測驗              |
+                       | 閃卡              |
+                       | 心智圖            |
+                       | 資訊圖表          |
+                       | 資料表            |
+                       | 學習指南          |
                        +------------------+
-                            Phase 2b
+                            階段 2b
 ```
 
-## Quick Start
+## 快速開始
 
 ```bash
-# 1. Install
-git clone https://github.com/anthropics/notebooklm-skill.git
+# 1. 安裝
+git clone https://github.com/claude-world/notebooklm-skill.git
 cd notebooklm-skill
-pip install -r requirements.txt   # installs notebooklm-py v0.3.4
+pip install -r requirements.txt   # 安裝 notebooklm-py v0.3.4
 
-# 2. Authenticate with Google (one-time, opens browser)
+# 2. Google 驗證（一次性，會開啟瀏覽器）
 python3 -m notebooklm login
-# -> Opens Chromium, sign in to Google
-# -> Saves session to ~/.notebooklm/storage_state.json
-# -> All subsequent calls use pure HTTP (no browser needed)
+# -> 開啟 Chromium，登入 Google 帳號
+# -> Session 儲存至 ~/.notebooklm/storage_state.json
+# -> 之後所有操作都是純 HTTP（不需要瀏覽器）
 
-# 3. Create your first notebook from a URL
+# 3. 建立第一個筆記本
 python scripts/notebooklm_client.py create \
-  --title "My Research" \
+  --title "我的研究" \
   --sources https://example.com/article
 
-# 4. Ask research questions
+# 4. 提問研究問題
 python scripts/notebooklm_client.py ask \
-  --notebook "My Research" \
-  --query "What are the key findings?"
+  --notebook "我的研究" \
+  --query "這篇文章的關鍵發現是什麼？"
 
-# 5. Generate an audio podcast from the research
-python scripts/notebooklm_client.py generate \
-  --notebook "My Research" \
-  --type audio
+# 5. 生成 Podcast
+python scripts/notebooklm_client.py podcast \
+  --notebook "我的研究" \
+  --lang zh-TW \
+  --output podcast.m4a
 
-# 6. Verify auth status anytime
+# 6. 驗證登入狀態
 python scripts/auth_helper.py verify
 ```
 
-See [docs/SETUP.md](docs/SETUP.md) for the full setup guide.
+完整安裝指南請參考 [docs/SETUP.md](docs/SETUP.md)。
 
-## Authentication
+## 驗證方式
 
-notebooklm-py uses browser-based Google login (no OAuth client ID needed):
+notebooklm-py 使用瀏覽器登入 Google（不需要 OAuth Client ID）：
 
-| Step | Command | What happens |
-|------|---------|-------------|
-| **Login** | `python3 -m notebooklm login` | Opens headed Chromium, user logs into Google |
-| **Session storage** | Automatic | Saved to `~/.notebooklm/storage_state.json` |
-| **Subsequent use** | `NotebookLMClient.from_storage()` | Reads saved session, pure HTTP calls |
-| **Verify** | `python scripts/auth_helper.py verify` | Loads client + calls `notebooks.list()` |
-| **Clear** | `python scripts/auth_helper.py clear` | Removes `~/.notebooklm/` directory |
+| 步驟 | 指令 | 說明 |
+|------|------|------|
+| **登入** | `python3 -m notebooklm login` | 開啟 Chromium，使用者登入 Google |
+| **Session 儲存** | 自動 | 儲存至 `~/.notebooklm/storage_state.json` |
+| **後續使用** | `NotebookLMClient.from_storage()` | 讀取 Session，純 HTTP 呼叫 |
+| **驗證** | `python scripts/auth_helper.py verify` | 載入 Client 並呼叫 `notebooks.list()` |
+| **清除** | `python scripts/auth_helper.py clear` | 刪除 `~/.notebooklm/` 目錄 |
 
-Session typically lasts weeks. Re-run `login` if you get authentication errors.
+Session 通常可維持數週。如遇驗證錯誤，重新執行 `login` 即可。
 
-## Two Ways to Use
+## 兩種使用方式
 
 | | **Claude Code Skill** | **MCP Server** |
 |---|---|---|
-| **Best for** | Claude Code users who want NotebookLM in their workflow | Any MCP-compatible client (Cursor, Gemini CLI, etc.) |
-| **Setup** | Copy skill to `.claude/skills/` | Add server to MCP config |
-| **Invocation** | Claude auto-detects when relevant | Tools appear in client tool list |
-| **Config** | `SKILL.md` + `.env` | `mcp.json` + `.env` |
-| **Dependencies** | Python 3.10+, notebooklm-py | Python 3.10+, notebooklm-py |
+| **適合** | Claude Code 使用者，想在工作流中加入 NotebookLM | 任何 MCP 相容客戶端（Cursor、Gemini CLI 等） |
+| **設定** | 複製 Skill 到 `.claude/skills/` | 加入 MCP 設定 |
+| **觸發** | Claude 自動偵測相關需求 | 工具出現在客戶端工具列表 |
+| **設定檔** | `SKILL.md` + `.env` | `mcp.json` + `.env` |
+| **需求** | Python 3.10+, notebooklm-py | Python 3.10+, notebooklm-py |
 
-## Features
+## 功能
 
-| Feature | Description | Status |
+| 功能 | 說明 | 狀態 |
 |---|---|---|
-| **Notebook CRUD** | Create, list, delete notebooks | Available |
-| **Source ingestion** | Add URLs, PDFs, YouTube links, plain text | Available |
-| **Research queries** | Ask questions against notebook sources with citations | Available |
-| **Structured extraction** | Get key facts, arguments, timelines | Available |
-| **Content generation** | Use research output as context for Claude | Available |
-| **Batch operations** | Process multiple sources or queries at once | Available |
-| **trend-pulse integration** | Auto-discover trending topics to research | Available |
-| **threads-viral-agent integration** | Publish research-backed social posts | Available |
+| **筆記本 CRUD** | 建立、列出、刪除筆記本 | 可用 |
+| **來源匯入** | 加入網址、PDF、YouTube 連結、純文字 | 可用 |
+| **研究查詢** | 對筆記本來源提問，附帶引用 | 可用 |
+| **結構化萃取** | 取得關鍵事實、論點、時間軸 | 可用 |
+| **內容生成** | 將研究結果作為 Claude 的上下文 | 可用 |
+| **批次操作** | 一次處理多個來源或查詢 | 可用 |
+| **trend-pulse 整合** | 自動發現熱門話題進行研究 | 可用 |
+| **threads-viral-agent 整合** | 發布研究支撐的社群貼文 | 可用 |
 
-### Artifact Generation (10 types)
+### 產出物生成（10 種類型）
 
-| Artifact | Format | Description |
+| 產出物 | 格式 | 說明 |
 |---|---|---|
-| **Audio** | MP3 | AI-generated podcast discussion |
-| **Video** | MP4 | Video summary with visuals |
-| **Slides** | PDF | Presentation deck |
-| **Report** | PDF | Comprehensive written report |
-| **Quiz** | JSON | Multiple-choice assessment questions |
-| **Flashcards** | JSON | Study flashcard deck |
-| **Mind map** | SVG | Visual concept map |
-| **Infographic** | PNG | Visual data summary |
-| **Data table** | CSV | Structured data extraction |
-| **Study guide** | PDF | Structured learning material |
+| **音檔** | M4A | AI 生成的 Podcast 對談 |
+| **影片** | MP4 | 影片摘要，含視覺素材 |
+| **投影片** | PDF | 簡報投影片 |
+| **報告** | PDF | 完整書面報告 |
+| **測驗** | JSON | 多選題評量 |
+| **閃卡** | JSON | 學習用閃卡 |
+| **心智圖** | SVG | 視覺概念圖 |
+| **資訊圖表** | PNG | 視覺化資料摘要 |
+| **資料表** | CSV | 結構化資料萃取 |
+| **學習指南** | PDF | 結構化學習教材 |
 
-All artifacts support language selection (e.g., `--language zh-TW`).
+所有產出物都支援語言選擇（例如 `--lang zh-TW`）。
 
-## Architecture
+> **注意**：NotebookLM 回傳的音檔實際上是 MPEG-4 (M4A) 格式，不是 MP3。
+
+## 架構
 
 ```
 +---------------------------------------------------------------+
 |                      notebooklm-skill                          |
 |                                                                |
 |  +---------+  +--------------+  +----------+  +------------+  |
-|  | Phase 1 |  |   Phase 2    |  |  Phase 3 |  |  Phase 4   |  |
-|  | Collect  |->|  Research    |->| Generate  |->|  Publish   |  |
+|  | 階段 1  |  |   階段 2     |  |  階段 3  |  |  階段 4    |  |
+|  | 收集     |->|  研究        |->| 生成     |->|  發布      |  |
 |  +---------+  +--------------+  +----------+  +------------+  |
 |      |              |                |               |         |
 |  +--------+  +-------------+  +-----------+  +-----------+    |
 |  | URLs   |  | NotebookLM  |  |  Claude    |  | Threads   |    |
-|  | PDFs   |  | (via        |  |  Content   |  | Blog      |    |
-|  | RSS    |  |  notebooklm |  |  Engine    |  | Email     |    |
-|  | Trends |  |  -py 0.3.4) |  |            |  | CMS       |    |
+|  | PDFs   |  | (via        |  |  內容      |  | Blog      |    |
+|  | RSS    |  |  notebooklm |  |  引擎      |  | Email     |    |
+|  | 趨勢   |  |  -py 0.3.4) |  |            |  | CMS       |    |
 |  +--------+  | - notebooks |  +-----------+  +-----------+    |
 |              | - sources   |        |                          |
 |              | - chat/ask  |  +-----------+                    |
-|              | - artifacts |  | Artifacts |                    |
-|              +-------------+  | audio     |                    |
-|                               | video     |                    |
-|                               | slides    |                    |
-|                               | report    |                    |
-|                               | quiz      |                    |
-|                               | flashcards|                    |
-|                               | mind-map  |                    |
-|                               | infographic|                   |
-|                               | data-table|                    |
-|                               | study-guide|                   |
+|              | - artifacts |  | 產出物     |                    |
+|              +-------------+  | 音檔       |                    |
+|                               | 影片       |                    |
+|                               | 投影片     |                    |
+|                               | 報告       |                    |
+|                               | 測驗       |                    |
+|                               | 閃卡       |                    |
+|                               | 心智圖     |                    |
+|                               | 資訊圖表   |                    |
+|                               | 資料表     |                    |
+|                               | 學習指南   |                    |
 |                               +-----------+                    |
 |                                                                |
 |  +-----------------------------------------------------------+ |
-|  |  Interfaces                                                | |
-|  |  +-- scripts/          CLI tools (notebooklm-py direct)   | |
-|  |  +-- mcp-server/       MCP protocol server                | |
-|  |  +-- SKILL.md          Claude Code skill definition        | |
+|  |  介面                                                      | |
+|  |  +-- scripts/          CLI 工具 (直接呼叫 notebooklm-py)  | |
+|  |  +-- mcp-server/       MCP 協定伺服器                      | |
+|  |  +-- SKILL.md          Claude Code Skill 定義              | |
 |  +-----------------------------------------------------------+ |
 +---------------------------------------------------------------+
          ^                                          ^
          |                                          |
    +-----------+                             +-----------+
    |trend-pulse|                             |threads-   |
-   |(optional) |                             |viral-agent|
-   +-----------+                             |(optional) |
+   |(選用)     |                             |viral-agent|
+   +-----------+                             |(選用)     |
                                              +-----------+
 ```
 
-## Usage Examples
+## 使用範例
 
-### 1. Research to Article
+### 1. 研究 → 文章
 
-Take multiple sources, research them, and generate a structured article.
+從多個來源進行研究，生成結構化文章。
 
 ```bash
-# Full pipeline (creates notebook, researches, drafts article)
+# 完整 Pipeline（建立筆記本、研究、撰寫草稿）
 python scripts/pipeline.py research-to-article \
   --sources "https://arxiv.org/abs/2401.00001" \
             "https://blog.example.com/ai-agents" \
-            "https://youtube.com/watch?v=xyz" \
-  --title "AI Agent Survey"
+  --title "AI Agent 調查"
 
-# Or step-by-step with the client:
+# 或者用 client 逐步執行：
 
-# Create a notebook with 3 sources
+# 建立筆記本並加入來源
 python scripts/notebooklm_client.py create \
-  --title "AI Agent Survey" \
+  --title "AI Agent 調查" \
   --sources "https://arxiv.org/abs/2401.00001" \
-            "https://blog.example.com/ai-agents" \
-            "https://youtube.com/watch?v=xyz"
+            "https://blog.example.com/ai-agents"
 
-# Ask research questions
+# 提問研究問題
 python scripts/notebooklm_client.py ask \
-  --notebook "AI Agent Survey" \
-  --query "What are the main agent architectures?"
-
-python scripts/notebooklm_client.py ask \
-  --notebook "AI Agent Survey" \
-  --query "How do agents handle tool use?"
-
-python scripts/notebooklm_client.py ask \
-  --notebook "AI Agent Survey" \
-  --query "What are the unsolved challenges?"
+  --notebook "AI Agent 調查" \
+  --query "主要的 Agent 架構有哪些？"
 ```
 
-### 2. Research to Social Posts
+### 2. 研究 → 社群貼文
 
-Research a topic and generate platform-optimized social posts.
+研究主題並生成平台最佳化的社群貼文。
 
 ```bash
 python scripts/pipeline.py research-to-social \
   --sources "https://example.com/ai-news" \
   --platform threads \
-  --title "AI News This Week"
+  --title "本週 AI 新聞"
 ```
 
-### 3. Trending Topic to Content Pipeline
+### 3. 熱門話題 → 內容
 
-Combine with trend-pulse to automate the full discovery-to-publish pipeline.
+結合 trend-pulse 自動化「發現 → 發布」的完整流程。
 
 ```bash
 python scripts/pipeline.py trend-to-content \
@@ -237,60 +230,79 @@ python scripts/pipeline.py trend-to-content \
   --platform threads
 ```
 
-### 4. Batch RSS Digest
+### 4. RSS 批次摘要
 
-Turn an RSS feed into a newsletter-style digest.
+將 RSS feed 轉為電子報風格的摘要。
 
 ```bash
 python scripts/pipeline.py batch-digest \
   --rss "https://example.com/feed.xml" \
-  --title "Weekly AI Digest" \
-  --max-entries 15 \
-  --qa-count 5
+  --title "每週 AI 摘要" \
+  --max-entries 15
 ```
 
-### 5. Generate All Artifacts
+### 5. 生成所有產出物
 
-Create a notebook and generate all 10 artifact types.
+建立筆記本並生成全部 10 種產出物。
 
 ```bash
-# Generate everything
+# 生成全部
 python scripts/pipeline.py generate-all \
   --sources "https://example.com/article1" \
             "https://example.com/article2" \
-  --title "Research" \
+  --title "研究" \
   --output-dir ./output \
   --language zh-TW
 
-# Or generate specific types only
+# 或只生成特定類型
 python scripts/pipeline.py generate-all \
   --sources "https://example.com/article" \
   --types audio slides report \
   --output-dir ./output
-
-# Generate audio directly via client
-python scripts/notebooklm_client.py generate \
-  --notebook "Research" \
-  --type audio
 ```
 
-## Pipeline Workflows
+### 6. 投影片 + Podcast → YouTube 影片
 
-| Workflow | Input | Output | Steps |
+將 NotebookLM 生成的投影片和音檔合成為 YouTube 影片：
+
+```bash
+# 1. 生成投影片和 Podcast
+python scripts/notebooklm_client.py generate --notebook "研究" --type slides
+python scripts/notebooklm_client.py podcast --notebook "研究" --lang zh-TW --output podcast.m4a
+
+# 2. 下載投影片
+python scripts/notebooklm_client.py download --notebook "研究" --type slides --output slides.pdf
+
+# 3. PDF 轉 PNG + 合成影片
+pdftoppm -png -r 300 slides.pdf slides/slide
+ffmpeg -y \
+  -loop 1 -t <每張秒數> -i slides/slide-01.png \
+  -loop 1 -t <每張秒數> -i slides/slide-02.png \
+  ... \
+  -i podcast.m4a \
+  -filter_complex "[0:v]scale=1920:1080:...[v0]; ... concat=n=N:v=1:a=0[outv]" \
+  -map "[outv]" -map N:a \
+  -c:v libx264 -c:a aac -movflags +faststart \
+  output.mp4
+```
+
+## Pipeline 工作流
+
+| 工作流 | 輸入 | 輸出 | 步驟 |
 |---|---|---|---|
-| `research-to-article` | URLs, text | Article draft JSON | Create notebook -> 5 research questions -> article draft |
-| `research-to-social` | URLs, text | Social post draft | Create notebook -> summarize -> platform-specific post |
-| `trend-to-content` | Geo, count | Content per trend | Fetch trends -> create notebooks -> research -> draft |
-| `batch-digest` | RSS URL | Newsletter digest | Fetch RSS -> create notebook -> digest + Q&A |
-| `generate-all` | URLs, text | Audio, video, PDF, etc. | Create notebook -> generate all artifacts -> download |
+| `research-to-article` | URLs, 文字 | 文章草稿 JSON | 建立筆記本 → 5 個研究問題 → 文章草稿 |
+| `research-to-social` | URLs, 文字 | 社群貼文草稿 | 建立筆記本 → 摘要 → 平台專屬貼文 |
+| `trend-to-content` | 地區, 數量 | 每個趨勢的內容 | 取得趨勢 → 建立筆記本 → 研究 → 草稿 |
+| `batch-digest` | RSS URL | 電子報摘要 | 取得 RSS → 建立筆記本 → 摘要 + 問答 |
+| `generate-all` | URLs, 文字 | 音檔、影片、PDF 等 | 建立筆記本 → 生成所有產出物 → 下載 |
 
-## MCP Server Setup
+## MCP Server 設定
 
-The MCP server exposes NotebookLM operations as tools accessible by any MCP-compatible client.
+MCP Server 將 NotebookLM 操作公開為工具，任何 MCP 相容的客戶端都能使用。
 
 ### Claude Code
 
-Add to your project's `.mcp.json`:
+加入專案的 `.mcp.json`：
 
 ```json
 {
@@ -306,7 +318,7 @@ Add to your project's `.mcp.json`:
 
 ### Cursor
 
-Add to your Cursor MCP settings (`~/.cursor/mcp.json`):
+加入 Cursor MCP 設定（`~/.cursor/mcp.json`）：
 
 ```json
 {
@@ -322,7 +334,7 @@ Add to your Cursor MCP settings (`~/.cursor/mcp.json`):
 
 ### Gemini CLI
 
-Add to your Gemini CLI settings:
+加入 Gemini CLI 設定：
 
 ```json
 {
@@ -336,126 +348,126 @@ Add to your Gemini CLI settings:
 }
 ```
 
-## Claude Code Skill Setup
+## Claude Code Skill 安裝
 
-To install as a Claude Code skill, copy the skill directory into your project:
+將 Skill 目錄複製到你的專案中：
 
 ```bash
-# From your project root
+# 從你的專案根目錄
 mkdir -p .claude/skills/notebooklm
 cp /path/to/notebooklm-skill/SKILL.md .claude/skills/notebooklm/
 cp /path/to/notebooklm-skill/scripts/*.py .claude/skills/notebooklm/scripts/
 cp /path/to/notebooklm-skill/requirements.txt .claude/skills/notebooklm/
 
-# Authenticate (one-time)
+# 驗證（一次性）
 python3 -m notebooklm login
 ```
 
-Claude will automatically detect the skill when you ask about research, NotebookLM, or content creation from sources.
+Claude 會在你詢問研究、NotebookLM 或內容創作相關問題時自動偵測並啟動 Skill。
 
-## Configuration
+## 設定
 
-Create a `.env` file in the project root (or skill directory):
+在專案根目錄建立 `.env`（或 Skill 目錄中）：
 
 ```bash
-# Optional: Default settings
-NOTEBOOKLM_DEFAULT_DEPTH=5          # Number of research queries (1-10)
-NOTEBOOKLM_DEFAULT_FORMAT=json      # Output format: json, markdown, text
-NOTEBOOKLM_MAX_SOURCES=50           # Max sources per notebook
+# 選用：預設設定
+NOTEBOOKLM_DEFAULT_DEPTH=5          # 研究查詢數（1-10）
+NOTEBOOKLM_DEFAULT_FORMAT=json      # 輸出格式：json, markdown, text
+NOTEBOOKLM_MAX_SOURCES=50           # 每個筆記本最大來源數
 
-# Optional: trend-pulse integration
-TREND_PULSE_URL=http://localhost:3002  # trend-pulse MCP server URL
+# 選用：trend-pulse 整合
+TREND_PULSE_URL=http://localhost:3002  # trend-pulse MCP 伺服器 URL
 
-# Optional: threads-viral-agent integration
-THREADS_TOKEN=your-threads-token       # For auto-publishing to Threads
+# 選用：threads-viral-agent 整合
+THREADS_TOKEN=your-threads-token       # 自動發布到 Threads
 ```
 
-Note: No Google OAuth credentials needed. Auth is handled via browser login (`python3 -m notebooklm login`).
+注意：不需要 Google OAuth 憑證。驗證透過瀏覽器登入處理（`python3 -m notebooklm login`）。
 
-## API Reference
+## API 參考
 
-### CLI Commands
+### CLI 指令
 
-| Command | Description |
+| 指令 | 說明 |
 |---|---|
-| `create` | Create a notebook with URL/text sources |
-| `ask` | Ask a research question against a notebook (returns text + citations) |
-| `generate` | Generate an artifact (audio, video, slides, etc.) from a notebook |
-| `list` | List all notebooks |
-| `delete` | Delete a notebook |
+| `create` | 建立筆記本並加入 URL/文字來源 |
+| `list` | 列出所有筆記本 |
+| `delete` | 刪除筆記本 |
+| `add-source` | 加入來源（URL、文字或檔案）到現有筆記本 |
+| `ask` | 對筆記本提問研究問題（回傳答案 + 引用） |
+| `summarize` | 取得筆記本摘要 |
+| `generate` | 生成產出物（音檔、影片、投影片等） |
+| `download` | 下載已生成的產出物 |
+| `research` | 執行深度網頁研究 |
+| `podcast` | `generate --type audio` 的快捷指令（含自動下載） |
+| `qa` | `generate --type quiz` 的快捷指令 |
 
-### Pipeline Workflows
+### Pipeline 工作流
 
-| Workflow | Description |
+| 工作流 | 說明 |
 |---|---|
-| `research-to-article` | Sources -> notebook -> 5 research questions -> article draft |
-| `research-to-social` | Sources -> notebook -> summary -> platform-specific social post |
-| `trend-to-content` | Fetch trends -> create notebooks -> research -> content per trend |
-| `batch-digest` | RSS feed -> notebook -> newsletter digest + Q&A |
-| `generate-all` | Sources -> notebook -> generate + download all artifact types |
+| `research-to-article` | 來源 → 筆記本 → 5 個研究問題 → 文章草稿 |
+| `research-to-social` | 來源 → 筆記本 → 摘要 → 平台專屬社群貼文 |
+| `trend-to-content` | 取得趨勢 → 建立筆記本 → 研究 → 每個趨勢的內容 |
+| `batch-digest` | RSS feed → 筆記本 → 電子報摘要 + 問答 |
+| `generate-all` | 來源 → 筆記本 → 生成 + 下載所有產出物類型 |
 
-### MCP Tools (15)
+### MCP 工具（13 個）
 
-| Tool | Description |
+| 工具 | 說明 |
 |---|---|
-| `notebooklm_create` | Create a notebook with sources |
-| `notebooklm_add_source_url` | Add a URL source to an existing notebook |
-| `notebooklm_add_source_text` | Add a text source to an existing notebook |
-| `notebooklm_ask` | Ask a question against a notebook (returns text + citations) |
-| `notebooklm_list` | List all notebooks |
-| `notebooklm_delete` | Delete a notebook |
-| `notebooklm_generate_audio` | Generate audio podcast from notebook |
-| `notebooklm_generate_video` | Generate video summary from notebook |
-| `notebooklm_generate_slides` | Generate presentation slides from notebook |
-| `notebooklm_generate_report` | Generate written report from notebook |
-| `notebooklm_generate_quiz` | Generate quiz questions from notebook |
-| `notebooklm_generate_flashcards` | Generate flashcard deck from notebook |
-| `notebooklm_generate_mind_map` | Generate mind map from notebook |
-| `notebooklm_generate_infographic` | Generate infographic from notebook |
-| `notebooklm_download_artifact` | Download a generated artifact by type |
-| `notebooklm_auth_status` | Check authentication status |
+| `nlm_create_notebook` | 建立筆記本並加入來源 |
+| `nlm_list` | 列出所有筆記本 |
+| `nlm_delete` | 刪除筆記本 |
+| `nlm_add_source` | 加入來源到現有筆記本 |
+| `nlm_ask` | 對筆記本提問（回傳答案 + 引用） |
+| `nlm_summarize` | 取得筆記本摘要 |
+| `nlm_generate` | 生成產出物（10 種類型） |
+| `nlm_download` | 下載已生成的產出物 |
+| `nlm_list_sources` | 列出筆記本中的來源 |
+| `nlm_list_artifacts` | 列出已生成的產出物 |
+| `nlm_research` | 執行深度網頁研究 |
+| `nlm_research_pipeline` | 完整研究 Pipeline |
+| `nlm_trend_research` | 趨勢 → 研究 Pipeline |
 
-For detailed API docs, see [docs/](docs/).
-
-## Integrations
+## 整合
 
 ### trend-pulse
 
-[trend-pulse](https://github.com/anthropics/trend-pulse) provides real-time trending topic discovery. When configured, notebooklm-skill can automatically:
+[trend-pulse](https://github.com/claude-world/trend-pulse) 提供即時熱門話題發現。設定後，notebooklm-skill 可以自動：
 
-- Fetch trending topics from 7 sources (Google Trends, HN, Reddit, etc.)
-- Create NotebookLM notebooks from top trending URLs
-- Feed research results into the content pipeline
+- 從 7 個來源（Google Trends、HN、Reddit 等）取得熱門話題
+- 從熱門 URL 建立 NotebookLM 筆記本
+- 將研究結果餵入內容 Pipeline
 
 ### threads-viral-agent
 
-When paired with a Threads publishing tool, the pipeline extends to auto-publish research-backed social posts with engagement optimization.
+搭配 Threads 發布工具，Pipeline 可延伸為自動發布研究支撐的社群貼文，並優化觸及率。
 
-## Contributing
+## 貢獻
 
-Contributions are welcome! Please:
+歡迎貢獻！請：
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Fork 這個倉庫
+2. 建立功能分支（`git checkout -b feature/amazing-feature`）
+3. Commit 你的變更（`git commit -m 'Add amazing feature'`）
+4. Push 到分支（`git push origin feature/amazing-feature`）
+5. 開啟 Pull Request
 
-### Development Setup
+### 開發環境
 
 ```bash
-git clone https://github.com/anthropics/notebooklm-skill.git
+git clone https://github.com/claude-world/notebooklm-skill.git
 cd notebooklm-skill
 pip install -r requirements.txt
-pip install -r requirements-dev.txt  # Testing & linting
 
-# Authenticate
+# 驗證
 python3 -m notebooklm login
 
-# Run tests
+# 執行測試
 python -m pytest tests/
 ```
 
-## License
+## 授權
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License。詳見 [LICENSE](LICENSE)。

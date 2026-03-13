@@ -1,149 +1,103 @@
-# Example: Research to Article
+# 範例：研究 → 文章
 
-Take 3 URLs, create a NotebookLM notebook, ask 5 research questions, and generate a structured article draft.
+從 3 個網址建立 NotebookLM 筆記本，提問 5 個研究問題，生成結構化文章草稿。
 
-## Overview
+## 流程
 
 ```
-3 source URLs → NotebookLM notebook → 5 research queries → Structured JSON → Article draft
+3 個來源 URL → NotebookLM 筆記本 → 5 個研究查詢 → 結構化 JSON → 文章草稿
 ```
 
-## Prerequisites
+## 前置需求
 
-- notebooklm-skill installed and authenticated (see [docs/SETUP.md](../../docs/SETUP.md))
+- notebooklm-skill 已安裝並完成驗證（參考 [docs/SETUP.md](../../docs/SETUP.md)）
 
-## Step 1: Create a Notebook with Sources
+## 步驟 1：建立筆記本並加入來源
 
-Pick 3 URLs covering different angles on a topic. For this example, we'll research AI coding assistants.
+選擇 3 個涵蓋不同角度的網址。這個範例研究 AI 程式助手。
 
 ```bash
 python scripts/notebooklm_client.py create \
-  --name "AI Coding Assistants 2026" \
+  --title "AI 程式助手 2026" \
   --sources \
-    "https://www.anthropic.com/research/claude-code" \
+    "https://www.anthropic.com/news/claude-code" \
     "https://github.blog/2024-06-05-github-copilot-research/" \
     "https://cursor.com/blog/building-with-ai"
 ```
 
-Expected output:
+## 步驟 2：提問研究問題
 
-```json
-{
-  "status": "created",
-  "notebook": {
-    "id": "nb_a1b2c3d4e5",
-    "name": "AI Coding Assistants 2026",
-    "sources": 3,
-    "created_at": "2026-03-14T10:00:00Z"
-  }
-}
-```
-
-## Step 2: Ask Research Questions
-
-Ask 5 targeted questions that will give you material for a well-rounded article.
+提出 5 個有針對性的問題，為撰寫全面的文章收集素材。
 
 ```bash
-python scripts/notebooklm_client.py query \
-  --notebook "AI Coding Assistants 2026" \
-  --questions \
-    "What are the key differences between the major AI coding assistants?" \
-    "What metrics exist for measuring AI coding assistant effectiveness?" \
-    "What workflows do developers use with AI coding tools?" \
-    "What are the main criticisms and limitations of AI coding assistants?" \
-    "What trends are emerging for the future of AI-assisted development?"
+python scripts/notebooklm_client.py ask \
+  --notebook "AI 程式助手 2026" \
+  --query "主要的 AI 程式助手有什麼關鍵差異？"
+
+python scripts/notebooklm_client.py ask \
+  --notebook "AI 程式助手 2026" \
+  --query "衡量 AI 程式助手效果的指標有哪些？"
+
+python scripts/notebooklm_client.py ask \
+  --notebook "AI 程式助手 2026" \
+  --query "開發者如何在工作流中使用 AI 程式工具？"
+
+python scripts/notebooklm_client.py ask \
+  --notebook "AI 程式助手 2026" \
+  --query "AI 程式助手的主要批評和限制是什麼？"
+
+python scripts/notebooklm_client.py ask \
+  --notebook "AI 程式助手 2026" \
+  --query "AI 輔助開發的新興趨勢有哪些？"
 ```
 
-Expected output:
+每個查詢都會回傳 JSON，包含 `answer`（答案）和 `references`（引用來源）。
 
-```json
-{
-  "notebook": "AI Coding Assistants 2026",
-  "queries": [
-    {
-      "question": "What are the key differences between the major AI coding assistants?",
-      "answer": "Based on the sources, the major differences center on three axes: (1) Architecture — inline completion vs. chat-based vs. agentic approaches...",
-      "citations": [
-        {"source": "anthropic.com", "excerpt": "Claude Code takes an agentic approach..."},
-        {"source": "github.blog", "excerpt": "Copilot focuses on inline suggestions..."}
-      ]
-    },
-    {
-      "question": "What metrics exist for measuring AI coding assistant effectiveness?",
-      "answer": "The sources reference several metrics: acceptance rate (% of suggestions kept), time-to-completion for tasks, lines of code generated vs. manually written...",
-      "citations": [
-        {"source": "github.blog", "excerpt": "In our study, developers completed tasks 55% faster..."}
-      ]
-    },
-    {
-      "question": "What workflows do developers use with AI coding tools?",
-      "answer": "Three primary workflows emerge: (1) autocomplete-driven — developer writes, AI suggests completions; (2) chat-driven — developer describes intent, AI generates blocks; (3) agent-driven — developer specifies goal, AI plans and executes...",
-      "citations": [
-        {"source": "cursor.com", "excerpt": "The most productive developers alternate between..."}
-      ]
-    },
-    {
-      "question": "What are the main criticisms and limitations of AI coding assistants?",
-      "answer": "Key criticisms include: code quality concerns (generated code may have subtle bugs), over-reliance reducing learning, context window limitations, and security risks from training data leakage...",
-      "citations": []
-    },
-    {
-      "question": "What trends are emerging for the future of AI-assisted development?",
-      "answer": "Emerging trends include: multi-file agentic editing, MCP-based tool integration, background autonomous agents, and spec-driven development where AI implements from specifications...",
-      "citations": [
-        {"source": "anthropic.com", "excerpt": "The shift toward agentic coding..."}
-      ]
-    }
-  ]
-}
-```
+## 步驟 3：使用 Pipeline 自動化
 
-## Step 3: Export Research
-
-Export the research results as structured JSON for Claude to use as context.
+如果不想逐步執行，可以用 Pipeline 一次完成：
 
 ```bash
-python scripts/notebooklm_client.py export \
-  --notebook "AI Coding Assistants 2026" \
-  --format json \
-  --output research.json
+python scripts/pipeline.py research-to-article \
+  --sources \
+    "https://www.anthropic.com/news/claude-code" \
+    "https://github.blog/2024-06-05-github-copilot-research/" \
+    "https://cursor.com/blog/building-with-ai" \
+  --title "AI 程式助手 2026"
 ```
 
-The `research.json` file now contains all questions, answers, and source citations in a structured format.
+Pipeline 會自動：
+1. 建立筆記本並加入 3 個來源
+2. 提出 5 個預設研究問題
+3. 生成文章草稿
+4. 輸出結構化 JSON（含研究發現 + 文章草稿）
 
-## Step 4: Generate the Article
+## 步驟 4：生成產出物（選用）
 
-Use the research to generate an article. You can do this via the CLI:
+從研究內容生成投影片、Podcast 等：
 
 ```bash
+# 生成投影片
 python scripts/notebooklm_client.py generate \
-  --notebook "AI Coding Assistants 2026" \
-  --format article \
-  --style technical-blog \
-  --output draft.md
+  --notebook "AI 程式助手 2026" --type slides
+
+# 生成 Podcast（繁中）
+python scripts/notebooklm_client.py podcast \
+  --notebook "AI 程式助手 2026" --lang zh-TW --output podcast.m4a
+
+# 下載投影片
+python scripts/notebooklm_client.py download \
+  --notebook "AI 程式助手 2026" --type slides --output slides.pdf
 ```
 
-Or, hand `research.json` directly to Claude with a prompt like:
+## 技巧
 
-> Using the attached research, write a 1500-word technical blog post titled "AI Coding Assistants in 2026: A Landscape Review." Structure it with an introduction, 3-4 main sections based on the research themes, and a forward-looking conclusion. Cite sources inline.
+- **問對比性問題**：「優點是什麼？」+「批評是什麼？」能得到平衡的報導。
+- **問具體問題**：「有哪些衡量 X 的指標？」比「告訴我 X」產出更具體的素材。
+- **3-7 個來源最佳**：太少缺乏深度，太多則焦點分散。
+- **先檢視研究結果**：在生成內容前檢查 JSON 輸出，確保素材品質。
 
-## Step 5: Review the Output
+## 下一步
 
-The generated `draft.md` will have:
-
-- A structured outline derived from your 5 questions
-- Key findings synthesized across all 3 sources
-- Source citations mapped back to the original URLs
-- A coherent narrative connecting the research themes
-
-## Tips
-
-- **Ask contrasting questions.** "What are the strengths?" + "What are the criticisms?" gives balanced coverage.
-- **Use specific questions.** "What metrics exist for X?" yields more concrete material than "Tell me about X."
-- **3-7 sources is the sweet spot.** Too few lacks depth; too many dilutes focus.
-- **Export before generating.** The JSON export lets you inspect and curate the research before content generation.
-
-## Next Steps
-
-- [Research to Threads](../research-to-threads/) — Turn research into social posts
-- [Trend to Content](../trend-to-content/) — Start from trending topics instead of manual URLs
+- [研究 → Threads](../research-to-threads/) — 將研究轉為社群貼文
+- [趨勢 → 內容](../trend-to-content/) — 從熱門話題開始，而非手動指定 URL

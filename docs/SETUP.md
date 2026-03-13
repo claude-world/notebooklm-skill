@@ -1,159 +1,118 @@
-# Setup Guide
+# 安裝指南
 
-Complete setup instructions for notebooklm-skill.
+notebooklm-skill 的完整安裝說明。
 
 ---
 
-## Prerequisites
+## 前置需求
 
-- **Python 3.10+** (`python3 --version`)
-- **pip** (`pip --version`)
-- **A Google account** with access to [NotebookLM](https://notebooklm.google.com/)
+- **Python 3.10+**（`python3 --version`）
+- **pip**（`pip --version`）
+- **Google 帳號**，可存取 [NotebookLM](https://notebooklm.google.com/)
 
-## 1. Install Dependencies
+## 1. 安裝依賴
 
 ```bash
-git clone https://github.com/anthropics/notebooklm-skill.git
+git clone https://github.com/claude-world/notebooklm-skill.git
 cd notebooklm-skill
 pip install -r requirements.txt
 ```
 
-Verify the install:
+驗證安裝：
 
 ```bash
-python scripts/notebooklm_client.py --version
+python scripts/notebooklm_client.py list
 ```
 
-## 2. Google Authentication
+## 2. Google 驗證
 
-notebooklm-skill uses Google OAuth to access NotebookLM on your behalf. You need to create OAuth credentials and authorize the app once.
+notebooklm-py 使用瀏覽器登入 Google（不需要 OAuth Client ID 或 Google Cloud 專案）。
 
-### Step 2a: Create a Google Cloud Project
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click **Select a project** > **New Project**
-3. Name it `notebooklm-skill` (or anything you prefer)
-4. Click **Create**
-
-### Step 2b: Enable the NotebookLM API
-
-1. In your new project, go to **APIs & Services** > **Library**
-2. Search for **NotebookLM API**
-3. Click **Enable**
-
-### Step 2c: Create OAuth Credentials
-
-1. Go to **APIs & Services** > **Credentials**
-2. Click **+ Create Credentials** > **OAuth client ID**
-3. If prompted, configure the OAuth consent screen:
-   - **User Type**: External
-   - **App name**: `notebooklm-skill`
-   - **Scopes**: Add `https://www.googleapis.com/auth/notebooklm`
-   - **Test users**: Add your Google email
-4. For the OAuth client:
-   - **Application type**: Desktop app
-   - **Name**: `notebooklm-skill`
-5. Click **Create**
-6. Download the JSON file
-
-### Step 2d: Run the Auth Helper
+### 步驟 2a：執行登入
 
 ```bash
-# Point to your downloaded credentials
-python scripts/auth_helper.py setup --credentials ~/Downloads/client_secret_*.json
+python3 -m notebooklm login
 ```
 
-This will:
-1. Copy credentials to `~/.config/notebooklm-skill/credentials.json`
-2. Open your browser for Google authorization
-3. Store the refresh token locally at `~/.config/notebooklm-skill/token.json`
+這會：
+1. 開啟 Chromium 瀏覽器
+2. 顯示 Google 登入頁面 — 使用你的 Google 帳號登入
+3. 登入後自動儲存 Session 至 `~/.notebooklm/storage_state.json`
+4. 之後所有操作都是純 HTTP 呼叫（不再需要瀏覽器）
 
-Expected output:
+### 步驟 2b：驗證登入狀態
 
-```
-[1/3] Copying credentials to ~/.config/notebooklm-skill/credentials.json
-[2/3] Opening browser for authorization...
-      → Authorize the app with your Google account
-[3/3] Authorization successful!
-
-Token saved to: ~/.config/notebooklm-skill/token.json
-Authenticated as: you@gmail.com
-
-Setup complete. Try: python scripts/notebooklm_client.py list
+```bash
+python scripts/auth_helper.py verify
 ```
 
-### Step 2e: Create the .env File
+預期輸出：
+
+```
+[auth] Verifying NotebookLM authentication...
+[auth] Authentication OK — found N notebooks.
+```
+
+### 步驟 2c：（選用）建立 .env
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set:
+編輯 `.env` 設定預設值：
 
 ```bash
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_CREDENTIALS_PATH=~/.config/notebooklm-skill/credentials.json
+# 選用：預設設定
+NOTEBOOKLM_DEFAULT_DEPTH=5
+NOTEBOOKLM_DEFAULT_FORMAT=json
+NOTEBOOKLM_MAX_SOURCES=50
+
+# 選用：trend-pulse 整合
+TREND_PULSE_URL=http://localhost:3002
+
+# 選用：threads-viral-agent 整合
+THREADS_TOKEN=your-threads-token
 ```
 
-## 3. Verify Setup
+> **注意**：不需要 Google API 金鑰或 OAuth 憑證。驗證完全透過瀏覽器 Session 處理。
+
+## 3. 驗證設定
 
 ```bash
-# List your existing NotebookLM notebooks (may be empty)
+# 列出現有 NotebookLM 筆記本（可能是空的）
 python scripts/notebooklm_client.py list
 
-# Create a test notebook
+# 建立測試筆記本
 python scripts/notebooklm_client.py create \
-  --sources "https://en.wikipedia.org/wiki/Large_language_model" \
-  --name "Test Notebook"
+  --title "測試筆記本" \
+  --sources "https://zh.wikipedia.org/wiki/大型語言模型"
 
-# Query it
-python scripts/notebooklm_client.py query \
-  --notebook "Test Notebook" \
-  --questions "What is a large language model?"
+# 提問
+python scripts/notebooklm_client.py ask \
+  --notebook "測試筆記本" \
+  --query "什麼是大型語言模型？"
 
-# Clean up
-python scripts/notebooklm_client.py delete --notebook "Test Notebook"
+# 清理
+python scripts/notebooklm_client.py delete --notebook "測試筆記本"
 ```
 
-If all commands succeed, your setup is complete.
+如果所有指令都成功，你的設定就完成了。
 
-## 4. (Optional) MCP Server Setup
+## 4. （選用）MCP Server 設定
 
-The MCP server lets any MCP-compatible client (Claude Code, Cursor, Gemini CLI) use NotebookLM as a tool.
+MCP Server 讓任何 MCP 相容的客戶端（Claude Code、Cursor、Gemini CLI）能使用 NotebookLM 作為工具。
 
-### Start the Server
+### 啟動 Server
 
 ```bash
 python -m mcp-server
 ```
 
-The server runs on stdio by default (standard MCP transport).
+Server 預設使用 stdio（標準 MCP 傳輸協定）。
 
-### Register with Claude Code
+### 註冊到 Claude Code
 
-Add to your project's `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "notebooklm": {
-      "command": "python",
-      "args": ["-m", "mcp-server"],
-      "cwd": "/absolute/path/to/notebooklm-skill",
-      "env": {
-        "GOOGLE_CREDENTIALS_PATH": "~/.config/notebooklm-skill/credentials.json"
-      }
-    }
-  }
-}
-```
-
-Restart Claude Code. You should see `notebooklm` tools available.
-
-### Register with Cursor
-
-Add to `~/.cursor/mcp.json`:
+加入專案的 `.mcp.json`：
 
 ```json
 {
@@ -167,102 +126,103 @@ Add to `~/.cursor/mcp.json`:
 }
 ```
 
-## 5. (Optional) Claude Code Skill Installation
+重啟 Claude Code，你應該能看到 `notebooklm` 工具。
 
-If you prefer to use notebooklm-skill as a Claude Code skill (no MCP server required):
+### 註冊到 Cursor
+
+加入 `~/.cursor/mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "notebooklm": {
+      "command": "python",
+      "args": ["-m", "mcp-server"],
+      "cwd": "/absolute/path/to/notebooklm-skill"
+    }
+  }
+}
+```
+
+## 5. （選用）Claude Code Skill 安裝
+
+如果你想以 Claude Code Skill 使用（不需要 MCP Server）：
 
 ```bash
-# From your project root
+# 從你的專案根目錄
 mkdir -p .claude/skills/notebooklm
 cp /path/to/notebooklm-skill/SKILL.md .claude/skills/notebooklm/
 cp -r /path/to/notebooklm-skill/scripts/ .claude/skills/notebooklm/scripts/
 cp /path/to/notebooklm-skill/requirements.txt .claude/skills/notebooklm/
-
-# Set up credentials
-cp .claude/skills/notebooklm/.env.example .claude/skills/notebooklm/.env
-# Edit .env with your credentials
 ```
 
-Claude will auto-detect the skill. Trigger it by asking about NotebookLM research or content creation.
+Claude 會自動偵測 Skill。當你提到 NotebookLM 研究或內容創作時就會觸發。
 
-## 6. (Optional) trend-pulse Integration
+## 6. （選用）trend-pulse 整合
 
-[trend-pulse](https://github.com/anthropics/trend-pulse) provides trending topic discovery. To enable the integration:
+[trend-pulse](https://github.com/claude-world/trend-pulse) 提供熱門話題發現。啟用整合：
 
-1. Install and run trend-pulse (see its README)
-2. Add to your `.env`:
+1. 安裝並執行 trend-pulse（參考其 README）
+2. 加入 `.env`：
 
 ```bash
 TREND_PULSE_URL=http://localhost:3002
 ```
 
-3. Verify:
+## 7. 疑難排解
+
+### 「瀏覽器沒有開啟」
+
+```
+Error: Browser not found
+```
+
+**修復**：安裝 Playwright 瀏覽器：
 
 ```bash
-python scripts/notebooklm_client.py trending --geo TW --count 5
+python3 -m playwright install chromium
 ```
 
-## 7. Troubleshooting
-
-### "Google credentials not found"
+### 「Session 過期」
 
 ```
-Error: No credentials found at ~/.config/notebooklm-skill/credentials.json
+Error: Authentication failed
 ```
 
-**Fix**: Run `python scripts/auth_helper.py setup --credentials /path/to/your/client_secret.json` again.
-
-### "Token expired"
-
-```
-Error: Token has been expired or revoked
-```
-
-**Fix**: Delete the cached token and re-authorize:
+**修復**：重新登入：
 
 ```bash
-rm ~/.config/notebooklm-skill/token.json
-python scripts/auth_helper.py setup
+python scripts/auth_helper.py clear
+python3 -m notebooklm login
 ```
 
-### "NotebookLM API not enabled"
+### 「MCP Server 無法連線」
 
-```
-Error: API [notebooklm.googleapis.com] not enabled for project
-```
+**修復**：確認：
+1. MCP 設定中的 `cwd` 路徑是絕對路徑
+2. Shell 中可使用 Python 3.10+（`python --version`）
+3. 已安裝依賴（`pip install -r requirements.txt`）
 
-**Fix**: Enable the NotebookLM API in [Google Cloud Console](https://console.cloud.google.com/apis/library) for your project.
+### 「產出物生成超時」
 
-### "Quota exceeded"
-
-```
-Error: Quota exceeded for NotebookLM API
-```
-
-**Fix**: NotebookLM has rate limits. Wait a few minutes and try again. For batch operations, use `--delay` flag:
+音檔和影片生成可能需要 5-10 分鐘。如果客戶端超時（600 秒），產出物可能仍在 NotebookLM 伺服器上生成。稍後用 `download` 指令嘗試下載：
 
 ```bash
-python scripts/notebooklm_client.py query \
-  --notebook "My Research" \
-  --questions "Q1" "Q2" "Q3" \
-  --delay 5  # 5 seconds between queries
+python scripts/notebooklm_client.py download \
+  --notebook "你的筆記本" \
+  --type audio \
+  --output podcast.m4a
 ```
 
-### "MCP server not connecting"
+### 「音檔無法播放」
 
-**Fix**: Check that:
-1. The `cwd` path in your MCP config is an absolute path
-2. Python 3.10+ is available at the `python` command in your shell
-3. Dependencies are installed (`pip install -r requirements.txt`)
-4. `.env` file exists in the project root with valid credentials
+NotebookLM 回傳的音檔實際上是 MPEG-4 (M4A) 格式，不是 MP3。請使用 `.m4a` 副檔名：
 
-### "Permission denied on auth"
+```bash
+# 如果儲存為 .mp3，改名即可
+mv podcast.mp3 podcast.m4a
+```
 
-If the browser auth flow shows "This app isn't verified":
-1. Click **Advanced** > **Go to notebooklm-skill (unsafe)**
-2. This is expected for development OAuth apps
-3. For production use, complete Google's OAuth verification process
+### 需要更多幫助？
 
-### Need More Help?
-
-Open an issue at [github.com/anthropics/notebooklm-skill/issues](https://github.com/anthropics/notebooklm-skill/issues).
+在 [github.com/claude-world/notebooklm-skill/issues](https://github.com/claude-world/notebooklm-skill/issues) 開 Issue。

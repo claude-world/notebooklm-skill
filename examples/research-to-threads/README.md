@@ -1,161 +1,86 @@
-# Example: Research to Threads
+# 範例：研究 → Threads 貼文
 
-Research a topic with NotebookLM, then generate a Threads-optimized social post backed by real sources.
+用 NotebookLM 研究主題，生成 Threads 平台最佳化的社群貼文，有真實來源支撐。
 
-## Overview
+## 流程
 
 ```
-Topic → NotebookLM research → Key insights → Threads post → (Optional) Publish
+主題 → NotebookLM 研究 → 關鍵洞見 → Threads 貼文 → （選用）發布
 ```
 
-## Prerequisites
+## 前置需求
 
-- notebooklm-skill installed and authenticated (see [docs/SETUP.md](../../docs/SETUP.md))
-- (Optional) Threads API token for publishing (see threads-viral-agent setup)
+- notebooklm-skill 已安裝並完成驗證（參考 [docs/SETUP.md](../../docs/SETUP.md)）
+- （選用）Threads API token，用於自動發布
 
-## Step 1: Quick Research on a Topic
-
-Use the `quick-research` command to create a notebook, find sources, and extract key insights in one step.
+## 步驟 1：建立筆記本並研究
 
 ```bash
-python scripts/notebooklm_client.py quick-research \
-  --topic "MCP servers for Claude Code" \
-  --depth 5
+# 建立筆記本
+python scripts/notebooklm_client.py create \
+  --title "MCP Server 深度解析" \
+  --sources \
+    "https://modelcontextprotocol.io/docs" \
+    "https://docs.anthropic.com/en/docs/claude-code/mcp"
+
+# 取得摘要
+python scripts/notebooklm_client.py ask \
+  --notebook "MCP Server 深度解析" \
+  --query "用 3 個關鍵重點摘要 MCP 的核心概念"
 ```
 
-Expected output:
+## 步驟 2：生成 Threads 貼文草稿
 
-```json
-{
-  "topic": "MCP servers for Claude Code",
-  "notebook_id": "nb_f6g7h8i9j0",
-  "sources_found": 4,
-  "research": {
-    "summary": "MCP (Model Context Protocol) servers extend Claude Code with external tool access. Key developments include standardized tool definitions, stdio transport, and growing ecosystem of community servers.",
-    "key_insights": [
-      "MCP uses a client-server architecture where Claude Code is the client and tools are exposed by servers",
-      "Transport options: stdio (local) and SSE (remote), with stdio being the default for local tools",
-      "The ecosystem has grown to 100+ community servers covering databases, APIs, file systems, and more",
-      "Configuration lives in .mcp.json at the project root",
-      "Security model: servers run locally with the user's permissions"
-    ],
-    "notable_facts": [
-      "MCP was open-sourced by Anthropic in late 2024",
-      "Claude Code, Cursor, Windsurf, and Gemini CLI all support MCP",
-      "The protocol supports tool discovery, resource access, and prompt templates"
-    ],
-    "sources": [
-      {"url": "https://modelcontextprotocol.io/docs", "title": "MCP Documentation"},
-      {"url": "https://docs.anthropic.com/claude-code/mcp", "title": "Claude Code MCP Guide"},
-      {"url": "https://github.com/modelcontextprotocol/servers", "title": "MCP Servers Repository"},
-      {"url": "https://www.anthropic.com/news/model-context-protocol", "title": "MCP Announcement"}
-    ]
-  }
-}
-```
-
-## Step 2: Generate a Threads Post
-
-Transform the research into a Threads-optimized post (500 characters, conversational tone, no URLs in body).
+請 NotebookLM 直接生成平台最佳化的貼文：
 
 ```bash
-python scripts/notebooklm_client.py generate \
-  --notebook "MCP servers for Claude Code" \
-  --format threads \
-  --tone conversational
+python scripts/notebooklm_client.py ask \
+  --notebook "MCP Server 深度解析" \
+  --query "根據筆記本內容，寫一則 Threads 貼文（500 字以內、繁體中文、口語化、不放網址、不放 hashtag）。要有一個吸引人的開頭，分享一個關鍵洞見，讓讀者想了解更多。"
 ```
 
-Expected output:
+## 步驟 3：使用 Pipeline 自動化
 
-```json
-{
-  "platform": "threads",
-  "post": {
-    "text": "MCP servers are quietly becoming the most important feature in AI coding tools.\n\nThe idea: your AI assistant can call external tools — databases, APIs, file search — through a standard protocol.\n\nClaude Code, Cursor, Gemini CLI all support it now.\n\n100+ community servers and growing.",
-    "character_count": 289,
-    "link_comment": "Deep dive on MCP: https://modelcontextprotocol.io/docs",
-    "hashtags": []
-  },
-  "research_backing": {
-    "claims_verified": 4,
-    "sources_cited": 3
-  }
-}
-```
-
-Note: The post body avoids URLs (which reduce reach on Threads). The link goes in a separate reply comment.
-
-## Step 3: Review and Edit
-
-Before publishing, review the generated post:
-
-- Is every claim backed by the research?
-- Does the tone match your voice?
-- Is it under 500 characters?
-- Would you engage with this post?
-
-Edit as needed. The research JSON is available for fact-checking.
-
-## Step 4: (Optional) Publish to Threads
-
-If you have a Threads API token configured:
+一行指令完成研究到貼文草稿：
 
 ```bash
-# Publish the post
-python scripts/notebooklm_client.py publish \
+python scripts/pipeline.py research-to-social \
+  --sources \
+    "https://modelcontextprotocol.io/docs" \
+    "https://docs.anthropic.com/en/docs/claude-code/mcp" \
   --platform threads \
-  --account your-account \
-  --text "MCP servers are quietly becoming the most important feature in AI coding tools.
-
-The idea: your AI assistant can call external tools — databases, APIs, file search — through a standard protocol.
-
-Claude Code, Cursor, Gemini CLI all support it now.
-
-100+ community servers and growing." \
-  --link-comment "Deep dive on MCP: https://modelcontextprotocol.io/docs"
+  --title "MCP Server 深度解析"
 ```
 
-Expected output:
+Pipeline 輸出 JSON，包含 `summary`（摘要）和 `social_draft`（貼文草稿）。
 
-```json
-{
-  "status": "published",
-  "post_id": "12345678901234567",
-  "url": "https://www.threads.net/@your-account/post/abc123",
-  "link_comment_id": "12345678901234568"
-}
-```
+## 步驟 4：審閱後發布
 
-Or use the threads-viral-agent directly:
+發布前請確認：
+
+- 每個主張都有研究支撐嗎？
+- 語氣符合你的風格嗎？
+- 字數在 500 字以內嗎？
+- 你自己會對這則貼文感興趣嗎？
+
+使用 threads-viral-agent 發布：
 
 ```bash
-python scripts/threads_api.py publish \
+python3 scripts/threads_api.py publish \
   --account cw \
-  --text "Your post text here" \
-  --link-comment "https://link.com"
+  --text "你的貼文內容" \
+  --link-comment "https://相關連結.com"
 ```
 
-## Alternative: One-Command Pipeline
+## 技巧
 
-Combine research and generation in a single command:
+- **貼文正文不要放網址**：Threads 演算法會降低含網址貼文的觸及。把連結放在 `--link-comment` 自動回覆中。
+- **300 字以內最佳**：Threads 獎勵簡潔、有衝擊力的內容。
+- **開頭要大膽**：研究結果給你信心做出強烈且準確的陳述。
+- **一則貼文一個洞見**：其他洞見留給後續貼文。
+- **先用 `--dry-run`**：發布前先預覽。
 
-```bash
-python scripts/notebooklm_client.py pipeline \
-  --topic "MCP servers for Claude Code" \
-  --platforms threads \
-  --tone conversational \
-  --dry-run  # Preview without publishing
-```
+## 下一步
 
-## Tips
-
-- **Keep posts under 300 characters for best engagement.** Threads rewards concise, punchy content.
-- **Never put URLs in the post body.** Use `--link-comment` to add a link as the first reply.
-- **Lead with a bold claim.** The research gives you confidence to make strong, accurate statements.
-- **One insight per post.** Save the other insights for follow-up posts throughout the week.
-- **Use `--dry-run` first.** Always preview before publishing.
-
-## Next Steps
-
-- [Research to Article](../research-to-article/) — Turn research into long-form content
-- [Trend to Content](../trend-to-content/) — Start from what's trending instead of a manual topic
+- [研究 → 文章](../research-to-article/) — 將研究轉為長篇內容
+- [趨勢 → 內容](../trend-to-content/) — 從熱門話題開始

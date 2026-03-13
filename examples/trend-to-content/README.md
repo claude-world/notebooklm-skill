@@ -1,220 +1,133 @@
-# Example: Trending Topic to Content
+# 範例：熱門話題 → 內容
 
-Use trend-pulse to discover what's trending, research the top topic with NotebookLM, and generate content for multiple platforms.
+使用 trend-pulse 發現熱門話題，用 NotebookLM 深度研究，生成多平台內容。
 
-## Overview
+## 流程
 
 ```
-trend-pulse discovery → Pick top topic → NotebookLM research → Multi-platform content
+trend-pulse 發現趨勢 → 選擇話題 → NotebookLM 研究 → 多平台內容
 ```
 
-## Prerequisites
+## 前置需求
 
-- notebooklm-skill installed and authenticated (see [docs/SETUP.md](../../docs/SETUP.md))
-- [trend-pulse](https://github.com/anthropics/trend-pulse) running (MCP server or CLI)
+- notebooklm-skill 已安裝並完成驗證（參考 [docs/SETUP.md](../../docs/SETUP.md)）
+- [trend-pulse](https://github.com/claude-world/trend-pulse) 執行中（MCP Server 或 CLI）
 
-## Step 1: Discover Trending Topics
+## 步驟 1：發現熱門話題
 
-Fetch trending topics from multiple sources.
+透過 trend-pulse 取得即時趨勢：
 
 ```bash
-python scripts/notebooklm_client.py trending \
+# 如果 trend-pulse 作為 MCP 使用（在 Claude Code 中）
+# 直接問：「台灣今天有什麼熱門話題？」
+
+# 或在 Pipeline 中自動取得
+python scripts/pipeline.py trend-to-content \
   --geo TW \
-  --count 10
+  --count 3 \
+  --platform threads
 ```
 
-Expected output:
+trend-pulse 從 7 個來源取得趨勢：Google Trends、Hacker News、Reddit、Product Hunt 等。
 
-```json
-{
-  "geo": "TW",
-  "timestamp": "2026-03-14T08:00:00Z",
-  "topics": [
-    {
-      "rank": 1,
-      "title": "Claude Code 2.0 Released",
-      "source": "hacker_news",
-      "score": 482,
-      "url": "https://www.anthropic.com/news/claude-code-2",
-      "related_urls": [
-        "https://news.ycombinator.com/item?id=12345678",
-        "https://www.reddit.com/r/ClaudeAI/comments/abc123"
-      ]
-    },
-    {
-      "rank": 2,
-      "title": "Apple WWDC 2026 Announcements",
-      "source": "google_trends",
-      "score": 350,
-      "url": "https://developer.apple.com/wwdc26/"
-    },
-    {
-      "rank": 3,
-      "title": "Open Source AI Models Benchmark",
-      "source": "reddit",
-      "score": 275,
-      "url": "https://huggingface.co/spaces/open-llm-leaderboard"
-    }
-  ]
-}
-```
+## 步驟 2：手動流程（逐步）
 
-If trend-pulse is running as an MCP server, you can also use it directly from Claude Code by asking "What's trending in Taiwan today?"
-
-## Step 2: Research the Top Topic
-
-Take the top trending topic and run deep research on it.
+如果想手動控制每一步：
 
 ```bash
-python scripts/notebooklm_client.py quick-research \
-  --topic "Claude Code 2.0 Released" \
+# 2a. 選一個話題，找相關網址，建立筆記本
+python scripts/notebooklm_client.py create \
+  --title "Claude Opus 4.6 1M Context" \
   --sources \
-    "https://www.anthropic.com/news/claude-code-2" \
-    "https://news.ycombinator.com/item?id=12345678" \
-    "https://www.reddit.com/r/ClaudeAI/comments/abc123" \
-  --depth 5
-```
+    "https://www.anthropic.com/news/claude-opus-4-6" \
+    "https://docs.anthropic.com/en/docs/about-claude/models"
 
-Expected output:
+# 2b. 加入額外上下文（文字來源）
+python scripts/notebooklm_client.py add-source \
+  --notebook "Claude Opus 4.6 1M Context" \
+  --text "你自己的分析或額外背景資料..." \
+  --text-title "個人分析"
 
-```json
-{
-  "topic": "Claude Code 2.0 Released",
-  "notebook_id": "nb_k1l2m3n4o5",
-  "sources_found": 3,
-  "research": {
-    "summary": "Claude Code 2.0 introduces background agents, improved MCP support, and a new multi-file editing mode. Community reception is largely positive with some concerns about pricing changes.",
-    "key_insights": [
-      "Background agents can run tasks autonomously while the developer works on other things",
-      "Multi-file editing mode handles cross-file refactors in a single operation",
-      "MCP server management is now built into the UI",
-      "Pricing moved to a usage-based model",
-      "Performance benchmarks show 40% faster task completion vs. 1.x"
-    ],
-    "notable_facts": [
-      "Available on all plans including free tier (with limits)",
-      "Background agents require explicit permission grants",
-      "Extension ecosystem grew to 500+ MCP servers"
-    ],
-    "community_sentiment": {
-      "positive": ["faster", "background agents are game-changing", "MCP support"],
-      "negative": ["pricing concerns", "context window still limited"],
-      "neutral": ["migration from 1.x is straightforward"]
-    }
-  }
-}
-```
+# 2c. 深度研究
+python scripts/notebooklm_client.py ask \
+  --notebook "Claude Opus 4.6 1M Context" \
+  --query "這個更新對開發者的實際影響是什麼？"
 
-## Step 3: Generate Multi-Platform Content
+# 2d. 生成社群貼文草稿
+python scripts/notebooklm_client.py ask \
+  --notebook "Claude Opus 4.6 1M Context" \
+  --query "根據內容寫一則 Threads 貼文（繁中、500字內、口語化、不放網址）"
 
-Generate content tailored for each platform in one command.
+# 2e. 生成產出物
+python scripts/notebooklm_client.py podcast \
+  --notebook "Claude Opus 4.6 1M Context" --lang zh-TW --output podcast.m4a
 
-```bash
 python scripts/notebooklm_client.py generate \
-  --notebook "Claude Code 2.0 Released" \
-  --platforms threads,blog,newsletter \
-  --output output/
+  --notebook "Claude Opus 4.6 1M Context" --type slides
+
+python scripts/notebooklm_client.py download \
+  --notebook "Claude Opus 4.6 1M Context" --type slides --output slides.pdf
 ```
 
-Expected output:
+## 步驟 3：自動化 Pipeline
 
-```json
-{
-  "notebook": "Claude Code 2.0 Released",
-  "generated": {
-    "threads": {
-      "file": "output/threads-post.txt",
-      "text": "Claude Code 2.0 just dropped and the killer feature is background agents.\n\nTell it what to do, go work on something else, come back to a finished PR.\n\nAlso: multi-file refactors in one shot, built-in MCP server management.\n\n40% faster than 1.x in benchmarks.",
-      "character_count": 263,
-      "link_comment": "Full announcement: https://www.anthropic.com/news/claude-code-2"
-    },
-    "blog": {
-      "file": "output/blog-draft.md",
-      "title": "Claude Code 2.0: Background Agents, Multi-File Editing, and What It Means for Developers",
-      "word_count": 1200,
-      "sections": ["Introduction", "Background Agents", "Multi-File Editing", "MCP Improvements", "Pricing Changes", "Community Reception", "Conclusion"]
-    },
-    "newsletter": {
-      "file": "output/newsletter-section.md",
-      "title": "This Week: Claude Code 2.0",
-      "word_count": 350,
-      "format": "newsletter-item"
-    }
-  }
-}
-```
-
-## Step 4: Review and Publish
-
-Each file is saved to the `output/` directory. Review them before publishing.
+一行指令完成趨勢發現到內容生成：
 
 ```bash
-# Preview all generated content
-ls output/
-# threads-post.txt
-# blog-draft.md
-# newsletter-section.md
-
-# Publish the Threads post (with dry-run first)
-python scripts/notebooklm_client.py publish \
-  --platform threads \
-  --file output/threads-post.txt \
-  --dry-run
-
-# When satisfied, publish for real
-python scripts/notebooklm_client.py publish \
-  --platform threads \
-  --file output/threads-post.txt \
-  --account your-account \
-  --link-comment "https://www.anthropic.com/news/claude-code-2"
-```
-
-## Alternative: Full Automated Pipeline
-
-Run the entire flow from trending topic discovery to content generation in one command:
-
-```bash
-python scripts/notebooklm_client.py pipeline \
-  --trend "top" \
+python scripts/pipeline.py trend-to-content \
   --geo TW \
-  --platforms threads,blog,newsletter \
-  --output output/ \
-  --dry-run
+  --count 5 \
+  --platform threads
 ```
 
-This will:
-1. Fetch trending topics from trend-pulse
-2. Pick the top topic
-3. Create a NotebookLM notebook with related URLs
-4. Run 5 research queries
-5. Generate platform-specific content
-6. Save to `output/` (or publish with `--publish` flag)
+Pipeline 會自動：
+1. 從 trend-pulse 取得 5 個熱門話題
+2. 為每個話題建立 NotebookLM 筆記本
+3. 加入相關 URL 作為來源
+4. 執行研究查詢
+5. 生成平台專屬內容草稿
+6. 輸出結構化 JSON
 
-## Weekly Digest Variant
+## 步驟 4：投影片 + Podcast → YouTube 影片
 
-For a weekly content digest from multiple trending topics:
+將產出物合成為 YouTube 影片：
 
 ```bash
-# Research the top 5 trends
-python scripts/notebooklm_client.py pipeline \
-  --trend "top-5" \
-  --geo TW \
-  --platforms newsletter \
-  --output output/weekly/ \
-  --style digest
+# PDF 轉 PNG
+pdftoppm -png -r 300 slides.pdf slides/slide
+
+# 合成影片（投影片 + 音檔）
+ffmpeg -y \
+  -loop 1 -t <秒數> -i slides/slide-01.png \
+  -loop 1 -t <秒數> -i slides/slide-02.png \
+  ... \
+  -i podcast.m4a \
+  -filter_complex "...[v0];...[v1];...concat=n=N:v=1:a=0[outv]" \
+  -map "[outv]" -map N:a \
+  -c:v libx264 -c:a aac output.mp4
 ```
 
-This creates a notebook per topic, researches each, and compiles a digest-format newsletter section covering all 5 topics.
+## 每週摘要模式
 
-## Tips
+用多個熱門話題生成每週內容摘要：
 
-- **Research before the crowd.** Trending topics have a 24-48 hour window of peak interest. Research early, publish fast.
-- **Add your own sources.** Use `--sources` alongside the trend's URLs to include your unique perspective.
-- **Platform priority matters.** If a topic is visually compelling, prioritize Instagram. If it's discussion-worthy, lead with Threads.
-- **Batch your content week.** Run the pipeline on Monday for 5 topics, schedule posts throughout the week.
-- **Check community sentiment.** The `community_sentiment` field in research output helps you calibrate your tone.
+```bash
+python scripts/pipeline.py trend-to-content \
+  --geo TW \
+  --count 5 \
+  --platform threads
+```
 
-## Next Steps
+這會為每個話題建立筆記本、研究並生成摘要式內容，適合每週電子報。
 
-- [Research to Article](../research-to-article/) — Deep dive on a single topic
-- [Research to Threads](../research-to-threads/) — Optimize for social engagement
+## 技巧
+
+- **搶先研究**：熱門話題有 24-48 小時的高峰期。早研究、快發布。
+- **加入自己的來源**：搭配趨勢的 URL 加入你的獨特觀點。
+- **平台優先級**：視覺型話題走 Instagram，討論型走 Threads。
+- **批次規劃**：週一跑 5 個話題的 Pipeline，排程整週發布。
+
+## 下一步
+
+- [研究 → 文章](../research-to-article/) — 單一主題深度研究
+- [研究 → Threads](../research-to-threads/) — 社群觸及最佳化

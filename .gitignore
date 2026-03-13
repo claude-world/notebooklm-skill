@@ -25,6 +25,8 @@ build/
 output/
 *.mp3
 *.mp4
+*.m4a
+*.pdf
 
 # Node (for MCP server if needed)
 node_modules/
