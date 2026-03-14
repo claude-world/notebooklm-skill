@@ -296,7 +296,7 @@ async def generate_artifact(
 
         # Wait for completion
         final = await client.artifacts.wait_for_completion(
-            notebook_id, status.task_id, timeout=600
+            notebook_id, status.task_id, timeout=3600
         )
 
         result: dict[str, Any] = {

@@ -420,7 +420,7 @@ async def cmd_generate(args) -> None:
             task_id = status.task_id
             _err(f"Task started: {task_id}. Waiting for completion...")
             try:
-                final = await client.artifacts.wait_for_completion(nb_id, task_id, timeout=600)
+                final = await client.artifacts.wait_for_completion(nb_id, task_id, timeout=3600)
                 result_data = _serialize(final)
             except Exception as exc:
                 _json_error(f"Artifact generation timed out or failed: {exc}", "TIMEOUT_ERROR")
@@ -570,7 +570,7 @@ async def cmd_podcast(args) -> None:
         task_id = status.task_id
         _err(f"Task started: {task_id}. Waiting for completion...")
         try:
-            final = await client.artifacts.wait_for_completion(nb_id, task_id, timeout=600)
+            final = await client.artifacts.wait_for_completion(nb_id, task_id, timeout=3600)
         except Exception as exc:
             _json_error(f"Podcast generation timed out or failed: {exc}", "TIMEOUT_ERROR")
 
@@ -622,7 +622,7 @@ async def cmd_qa(args) -> None:
         task_id = status.task_id
         _err(f"Task started: {task_id}. Waiting for completion...")
         try:
-            final = await client.artifacts.wait_for_completion(nb_id, task_id, timeout=600)
+            final = await client.artifacts.wait_for_completion(nb_id, task_id, timeout=3600)
         except Exception as exc:
             _json_error(f"Quiz generation timed out or failed: {exc}", "TIMEOUT_ERROR")
 

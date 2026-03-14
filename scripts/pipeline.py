@@ -775,7 +775,7 @@ def workflow_generate_all(args) -> None:
             for artifact_type, task_id in generation_tasks.items():
                 _err(f"  Waiting for {artifact_type} (task: {task_id})...")
                 try:
-                    await client.artifacts.wait_for_completion(nb.id, task_id, timeout=600)
+                    await client.artifacts.wait_for_completion(nb.id, task_id, timeout=3600)
                     _err(f"  {artifact_type} generation complete.")
                 except Exception as exc:
                     _err(f"  Warning: {artifact_type} generation failed or timed out: {exc}")
