@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """NotebookLM MCP Server.
 
-A FastMCP server that exposes 15 NotebookLM tools, usable by Claude Code,
+A FastMCP server that exposes 13 NotebookLM tools, usable by Claude Code,
 Cursor, Gemini CLI, and any other MCP-compatible client.
 
 Uses notebooklm-py v0.3.4 async API directly — no subprocess calls.
 
 Usage:
     # stdio mode (default — for Claude Code / Cursor)
-    python server.py
+    notebooklm-mcp                    # after pip install .
+    python3 mcp_server/server.py      # direct invocation
 
     # HTTP mode (for remote / multi-client access)
-    python server.py --http
-    python server.py --http --port 8765
+    notebooklm-mcp --http
+    notebooklm-mcp --http --port 8765
 
 MCP client configuration examples:
 
@@ -21,7 +22,7 @@ MCP client configuration examples:
       "mcpServers": {
         "notebooklm": {
           "command": "python3",
-          "args": ["/path/to/mcp-server/server.py"]
+          "args": ["/path/to/mcp_server/server.py"]
         }
       }
     }
@@ -31,7 +32,7 @@ MCP client configuration examples:
       "mcpServers": {
         "notebooklm": {
           "command": "python3",
-          "args": ["/path/to/mcp-server/server.py"]
+          "args": ["/path/to/mcp_server/server.py"]
         }
       }
     }
@@ -41,7 +42,7 @@ MCP client configuration examples:
       "mcpServers": {
         "notebooklm": {
           "command": "python3",
-          "args": ["/path/to/mcp-server/server.py"]
+          "args": ["/path/to/mcp_server/server.py"]
         }
       }
     }
@@ -58,10 +59,15 @@ MCP client configuration examples:
 
 import argparse
 import sys
+from pathlib import Path
+
+# Allow direct invocation: python3 mcp_server/server.py (without pip install).
+# Has no effect when called via pip-installed `notebooklm-mcp` entry point.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastmcp import FastMCP
 
-from tools import (
+from mcp_server.tools import (
     add_source,
     ask,
     create_notebook,
@@ -252,7 +258,7 @@ async def nlm_list_sources(notebook: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Artifact Tools (5)
+# Artifact Tools (3)
 # ---------------------------------------------------------------------------
 
 
@@ -297,7 +303,7 @@ async def nlm_download(
 ) -> dict:
     """Download a generated artifact to a local file.
 
-    Only supported for: audio (.mp3), slides (.pdf), video (.mp4).
+    Only supported for: audio (.m4a), slides (.pdf), video (.mp4).
 
     Args:
         notebook: Notebook ID or title.
@@ -308,7 +314,7 @@ async def nlm_download(
         Download status and output file path.
 
     Example:
-        nlm_download(notebook="AI Safety", type="audio", output_path="output/podcast.mp3")
+        nlm_download(notebook="AI Safety", type="audio", output_path="output/podcast.m4a")
     """
     try:
         return await download_artifact(notebook, type, output_path)
@@ -363,7 +369,7 @@ async def nlm_research(
     Args:
         notebook: Notebook ID or title.
         query: Research topic or question.
-        mode: Research mode — "fast" or "thorough" (default "fast").
+        mode: Research mode — "fast" or "deep" (default "fast").
 
     Returns:
         Research results and status.
@@ -456,9 +462,9 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  python server.py              # stdio mode (Claude Code, Cursor)\n"
-            "  python server.py --http       # HTTP mode on port 8765\n"
-            "  python server.py --http --port 9000\n"
+            "  notebooklm-mcp                # stdio mode (Claude Code, Cursor)\n"
+            "  notebooklm-mcp --http         # HTTP mode on port 8765\n"
+            "  notebooklm-mcp --http --port 9000\n"
         ),
     )
     parser.add_argument(
