@@ -10,25 +10,20 @@ SKILL_LINK="$HOME/.claude/skills/notebooklm-research.md"
 echo "=== notebooklm-skill installer ==="
 echo ""
 
+# Resolve Python interpreter — single interpreter for all steps
+PYTHON="${PYTHON:-$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)}"
+if [ -z "$PYTHON" ] || ! "$PYTHON" --version >/dev/null 2>&1; then
+    echo "Error: python3 not found. Install Python 3.10+ or set PYTHON env var." >&2; exit 1
+fi
+
 # 1. Install Python package in editable mode
 echo "[1/4] Installing Python package..."
-PIP="${PIP:-}"
-if [ -z "$PIP" ]; then
-    PIP="$(command -v pip3 2>/dev/null || command -v pip 2>/dev/null || true)"
-fi
-if [ -z "$PIP" ]; then
-    echo "Error: pip not found. Install pip or set PIP env var." >&2; exit 1
-fi
-"$PIP" install -e "$SCRIPT_DIR"
+"$PYTHON" -m pip install -e "$SCRIPT_DIR"
 echo "  -> notebooklm-skill, notebooklm-pipeline, notebooklm-mcp commands installed"
 echo ""
 
 # 2. Install Playwright Chromium (needed for first-time auth)
 echo "[2/4] Installing Playwright Chromium..."
-PYTHON="$(dirname "$PIP")/python3"
-if ! command -v "$PYTHON" >/dev/null 2>&1; then
-    PYTHON="python3"
-fi
 "$PYTHON" -m playwright install chromium
 echo ""
 
