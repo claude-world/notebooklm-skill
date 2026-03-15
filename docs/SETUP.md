@@ -12,18 +12,36 @@ Complete setup instructions for notebooklm-skill.
 - **pip** (`pip --version`)
 - **A Google account** with access to [NotebookLM](https://notebooklm.google.com/)
 
-## 1. Install Dependencies
+## 1. Install
+
+### Quick Install (recommended)
 
 ```bash
 git clone https://github.com/claude-world/notebooklm-skill.git
 cd notebooklm-skill
-pip install -r requirements.txt
+./install.sh    # pip install + Playwright + Claude Code Skill symlink
 ```
+
+### Manual Install
+
+```bash
+git clone https://github.com/claude-world/notebooklm-skill.git
+cd notebooklm-skill
+pip install .                     # or: pip install -r requirements.txt
+```
+
+After `pip install .`, three global commands are available:
+
+| Command | Description |
+|---------|-------------|
+| `notebooklm-skill` | Core CLI (create, ask, generate, download, etc.) |
+| `notebooklm-pipeline` | Workflow orchestration (research-to-article, etc.) |
+| `notebooklm-mcp` | MCP server for Claude Code / Cursor / Gemini CLI |
 
 Verify the install:
 
 ```bash
-python scripts/notebooklm_client.py list
+notebooklm-skill list             # or: python scripts/notebooklm_client.py list
 ```
 
 ## 2. Google Authentication
@@ -82,20 +100,20 @@ THREADS_TOKEN=your-threads-token
 
 ```bash
 # List existing NotebookLM notebooks (may be empty)
-python scripts/notebooklm_client.py list
+notebooklm-skill list
 
 # Create a test notebook
-python scripts/notebooklm_client.py create \
+notebooklm-skill create \
   --title "Test Notebook" \
   --sources "https://en.wikipedia.org/wiki/Large_language_model"
 
 # Ask a question
-python scripts/notebooklm_client.py ask \
+notebooklm-skill ask \
   --notebook "Test Notebook" \
   --query "What is a large language model?"
 
 # Clean up
-python scripts/notebooklm_client.py delete --notebook "Test Notebook"
+notebooklm-skill delete --notebook "Test Notebook"
 ```
 
 If all commands succeed, your setup is complete.
@@ -107,21 +125,34 @@ The MCP server lets any MCP-compatible client (Claude Code, Cursor, Gemini CLI) 
 ### Start the Server
 
 ```bash
-python -m mcp-server
+notebooklm-mcp                   # after pip install .
+# or: python3 mcp_server/server.py
 ```
 
 The server runs on stdio by default (standard MCP transport).
 
 ### Register with Claude Code
 
-Add to your project's `.mcp.json`:
+After `pip install .`, add to your project's `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "notebooklm": {
-      "command": "python",
-      "args": ["-m", "mcp-server"],
+      "command": "notebooklm-mcp"
+    }
+  }
+}
+```
+
+Or use the script path directly:
+
+```json
+{
+  "mcpServers": {
+    "notebooklm": {
+      "command": "python3",
+      "args": ["mcp_server/server.py"],
       "cwd": "/absolute/path/to/notebooklm-skill"
     }
   }
@@ -132,23 +163,15 @@ Restart Claude Code. You should see `notebooklm` tools available.
 
 ### Register with Cursor
 
-Add to `~/.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "notebooklm": {
-      "command": "python",
-      "args": ["-m", "mcp-server"],
-      "cwd": "/absolute/path/to/notebooklm-skill"
-    }
-  }
-}
-```
+Add to `~/.cursor/mcp.json` (same formats as above).
 
 ## 5. (Optional) Claude Code Skill Installation
 
 ```bash
+# Option A: Symlink (auto-updates with git pull) — done automatically by ./install.sh
+ln -s /path/to/notebooklm-skill/SKILL.md ~/.claude/skills/notebooklm-research.md
+
+# Option B: Manual copy
 mkdir -p .claude/skills/notebooklm
 cp /path/to/notebooklm-skill/SKILL.md .claude/skills/notebooklm/
 cp -r /path/to/notebooklm-skill/scripts/ .claude/skills/notebooklm/scripts/

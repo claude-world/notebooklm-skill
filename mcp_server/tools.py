@@ -432,7 +432,7 @@ async def research_pipeline(
             # Short-form: numbered points
             content_parts = []
             for i, a in enumerate(answers, 1):
-                text = a.get("text", a.get("error", ""))
+                text = a.get("answer", a.get("error", ""))
                 content_parts.append(f"{i}/ {text}")
             content = "\n\n".join(content_parts)
         elif output_format == "report":
@@ -440,14 +440,14 @@ async def research_pipeline(
             sections = []
             for a in answers:
                 q = a.get("question", "")
-                text = a.get("text", a.get("error", ""))
+                text = a.get("answer", a.get("error", ""))
                 sections.append(f"## {q}\n\n{text}")
             content = "\n\n---\n\n".join(sections)
         else:
             # Article: flowing prose
             content_parts = []
             for a in answers:
-                text = a.get("text", a.get("error", ""))
+                text = a.get("answer", a.get("error", ""))
                 content_parts.append(text)
             content = "\n\n".join(content_parts)
 
@@ -476,7 +476,6 @@ async def trend_research(
     trends: list[str] = []
     try:
         import subprocess
-        import sys
         import json
 
         trend_cmd = os.getenv("TREND_PULSE_CMD", "trend-pulse")

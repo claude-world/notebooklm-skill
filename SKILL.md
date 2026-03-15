@@ -54,7 +54,7 @@ citation-backed content.
 |---|---|
 | **notebooklm-py** (v0.3.4) | Python client for NotebookLM (8 sub-APIs, 50+ methods, built-in CLI) |
 | **notebooklm CLI** | Built-in CLI: `notebooklm login`, `notebook`, `source`, `chat`, `generate`, `download`, `research`, `share` |
-| **MCP Server** (mcp-server/) | FastMCP server exposing 12 tools for Claude Code / Cursor / Gemini CLI |
+| **MCP Server** (mcp_server/) | FastMCP server exposing 13 tools for Claude Code / Cursor / Gemini CLI |
 | **Wrapper CLI** (scripts/) | Our higher-level wrappers: `notebooklm_client.py`, `pipeline.py` |
 | **LLM** (Claude) | Content creator (writes original text using NotebookLM research) |
 | **trend-pulse** (optional) | Trending topic discovery for research-to-content pipelines |
@@ -123,10 +123,13 @@ notebooklm source add NOTEBOOK_ID --text "Custom Notes" --content "Full text her
 notebooklm source add NOTEBOOK_ID --file /path/to/document.pdf
 ```
 
-**Our wrapper CLI (scripts/notebooklm_client.py):**
+**Our wrapper CLI (global command or scripts/notebooklm_client.py):**
 
 ```bash
-# Create notebook with multiple URL sources at once
+# After pip install ., use global commands:
+# notebooklm-skill create --title "AI Agents Research" --sources url1 url2
+
+# Or use scripts directly:
 python3 scripts/notebooklm_client.py create \
   --title "AI Agents Research" \
   --sources \
@@ -141,8 +144,8 @@ python3 scripts/notebooklm_client.py add-source \
 # Add text source (pasted content)
 python3 scripts/notebooklm_client.py add-source \
   --notebook NOTEBOOK_ID \
-  --text "Title of Source" \
-  --content "Full text content here..."
+  --text "Full text content here..." \
+  --text-title "Title of Source"
 
 # Add file (PDF, Markdown, DOCX, CSV)
 python3 scripts/notebooklm_client.py add-source \
@@ -278,18 +281,18 @@ notebooklm chat NOTEBOOK_ID "Can you elaborate on point 3?" --conversation CONV_
 # Ask a question -- answer includes source citations
 python3 scripts/notebooklm_client.py ask \
   --notebook NOTEBOOK_ID \
-  --question "What are the key differences between ReAct and Reflexion agents?"
+  --query "What are the key differences between ReAct and Reflexion agents?"
 
 # Ask with specific sources only
 python3 scripts/notebooklm_client.py ask \
   --notebook NOTEBOOK_ID \
-  --question "Summarize the main findings" \
+  --query "Summarize the main findings" \
   --sources SOURCE_ID_1 SOURCE_ID_2
 
 # Follow-up question (maintains conversation context)
 python3 scripts/notebooklm_client.py ask \
   --notebook NOTEBOOK_ID \
-  --question "Can you elaborate on point 3?" \
+  --query "Can you elaborate on point 3?" \
   --conversation CONVERSATION_ID
 ```
 
@@ -425,17 +428,17 @@ python3 scripts/notebooklm_client.py generate data-table \
 **Built-in CLI:**
 
 ```bash
-notebooklm download audio NOTEBOOK_ID output.mp4
+notebooklm download audio NOTEBOOK_ID output.m4a
 notebooklm download video NOTEBOOK_ID output.mp4
 ```
 
 **Our wrapper CLI:**
 
 ```bash
-# Download audio (MP4)
+# Download audio (M4A)
 python3 scripts/notebooklm_client.py download audio \
   --notebook NOTEBOOK_ID \
-  --output podcast.mp4
+  --output podcast.m4a
 
 # Download video (MP4)
 python3 scripts/notebooklm_client.py download video \
@@ -636,7 +639,7 @@ Without social integration, output as files:
 | Social post JSON | Manual posting | `.json` with platform-specific text |
 | Newsletter draft | Email campaign | `.md` with sections |
 | Report (briefing doc) | Internal use, blog | Markdown from NotebookLM |
-| Podcast audio | Distribution | `.mp4` from NotebookLM audio artifact |
+| Podcast audio | Distribution | `.m4a` from NotebookLM audio artifact |
 | Video | Social media, YouTube | `.mp4` from NotebookLM video artifact |
 | Slide deck | Presentations | `.pdf` from NotebookLM slide deck |
 | Quiz / Flashcards | Education, training | `.json` structured data |
@@ -655,7 +658,7 @@ sources", "make a quiz", execute the complete flow.
 2. Create notebook: `notebooklm_client.py create --title "Topic" --sources url1 url2`
 3. Optionally run deep web research to discover more sources
 4. Wait for source processing
-5. Ask research questions: `notebooklm_client.py ask --question "Q1"`
+5. Ask research questions: `notebooklm_client.py ask --query "Q1"`
 6. Generate requested artifacts (audio, video, report, quiz, slides, etc.)
 7. Claude writes content using research answers (with citations)
 8. Output article/posts/report + downloadable artifacts
@@ -674,7 +677,7 @@ User: "Deep dive into AI coding assistants"
 7. Generate data table (feature comparison)
 8. Download all artifacts
 9. Claude writes companion article using cited research
-10. Output: article.md + podcast.mp4 + report.md + comparison.csv
+10. Output: article.md + podcast.m4a + report.md + comparison.csv
 ```
 
 ### Artifact Generation Flow
@@ -693,18 +696,32 @@ User: "Generate a quiz and flashcards from my notebook"
 
 ## MCP Server
 
-The `mcp-server/` directory contains a FastMCP server that exposes NotebookLM
+The `mcp_server/` directory contains a FastMCP server that exposes NotebookLM
 operations as MCP tools. Works with Claude Code, Cursor, Gemini CLI, and any
 MCP-compatible client.
 
 ### Configuration
+
+After `pip install .`:
+
+```json
+{
+  "mcpServers": {
+    "notebooklm": {
+      "command": "notebooklm-mcp"
+    }
+  }
+}
+```
+
+Or using script path:
 
 ```json
 {
   "mcpServers": {
     "notebooklm": {
       "command": "python3",
-      "args": ["/path/to/notebooklm-skill/mcp-server/server.py"]
+      "args": ["/path/to/notebooklm-skill/mcp_server/server.py"]
     }
   }
 }
@@ -713,7 +730,7 @@ MCP-compatible client.
 HTTP mode (for remote / multi-client access):
 
 ```bash
-python3 mcp-server/server.py --http --port 8765
+notebooklm-mcp --http --port 8765
 ```
 
 ```json
@@ -726,7 +743,7 @@ python3 mcp-server/server.py --http --port 8765
 }
 ```
 
-### MCP Tools (12 tools)
+### MCP Tools (13 tools)
 
 **Core notebook operations (7):**
 
@@ -735,10 +752,24 @@ python3 mcp-server/server.py --http --port 8765
 | `nlm_create_notebook(title, sources[], text_sources?)` | title, URL list, optional text list | Create notebook and add sources |
 | `nlm_list()` | -- | List all notebooks |
 | `nlm_delete(notebook)` | notebook ID or title | Delete a notebook (irreversible) |
+| `nlm_add_source(notebook, url?, text?, file_path?)` | notebook + source | Add a source to existing notebook |
 | `nlm_ask(notebook, query)` | notebook ID/title, question | Ask question, get cited answer |
 | `nlm_summarize(notebook)` | notebook ID or title | Get comprehensive summary |
-| `nlm_podcast(notebook, lang?)` | notebook ID/title, language | Generate audio overview |
-| `nlm_qa(notebook, count?)` | notebook ID/title, count | Generate Q&A pairs |
+| `nlm_list_sources(notebook)` | notebook ID or title | List all sources in notebook |
+
+**Artifact operations (3):**
+
+| Tool | Parameters | Description |
+|---|---|---|
+| `nlm_generate(notebook, type, lang?, instructions?)` | notebook, artifact type | Generate any of 10 artifact types |
+| `nlm_download(notebook, type, output_path)` | notebook, artifact type, output | Download artifact to file |
+| `nlm_list_artifacts(notebook, type?)` | notebook ID, optional type filter | List artifacts in notebook |
+
+**Research operations (1):**
+
+| Tool | Parameters | Description |
+|---|---|---|
+| `nlm_research(notebook, query, mode?)` | notebook, search query, mode | Run web research (fast or deep) |
 
 **Pipeline operations (2):**
 
@@ -746,16 +777,6 @@ python3 mcp-server/server.py --http --port 8765
 |---|---|---|
 | `nlm_research_pipeline(sources[], questions[], output_format?)` | URLs, questions, format | Full research-to-content pipeline |
 | `nlm_trend_research(geo?, count?, platform?)` | region, count, platform | Trending topics to researched content |
-
-**Planned additions (not yet implemented):**
-
-| Tool | Parameters | Description |
-|---|---|---|
-| `nlm_add_source(notebook, url/text/file)` | notebook + source | Add a source to existing notebook |
-| `nlm_generate(notebook, type, options?)` | notebook, artifact type | Generate any of 10 artifact types |
-| `nlm_download(notebook, type, path)` | notebook, artifact type, output | Download artifact to file |
-| `nlm_list_artifacts(notebook)` | notebook ID | List all artifacts in notebook |
-| `nlm_research(notebook, query, mode?)` | notebook, search query | Start web/drive research |
 
 ## Built-in CLI Reference (notebooklm-py)
 
@@ -815,7 +836,7 @@ notebooklm generate mind-map NOTEBOOK_ID
 ### Download
 
 ```bash
-notebooklm download audio NOTEBOOK_ID output.mp4           # Download podcast
+notebooklm download audio NOTEBOOK_ID output.m4a           # Download podcast
 notebooklm download video NOTEBOOK_ID output.mp4           # Download video
 notebooklm download slide-deck NOTEBOOK_ID output.pdf      # Download slides
 ```
@@ -841,7 +862,7 @@ notebooklm share NOTEBOOK_ID --add user@example.com        # Share with user
 | Subcommand | Description | Key Flags |
 |---|---|---|
 | `create` | Create notebook with sources | `--title`, `--sources`, `--text-sources` |
-| `ask` | Ask question, get cited answer | `--notebook`, `--question`, `--sources`, `--conversation` |
+| `ask` | Ask question, get cited answer | `--notebook`, `--query`, `--sources`, `--conversation` |
 | `summarize` | Summarize notebook content | `--notebook` |
 | `podcast` | Generate audio overview | `--notebook`, `--lang` |
 | `qa` | Generate Q&A pairs | `--notebook`, `--count` |
@@ -920,10 +941,10 @@ Common fixes:
 
 | Component | Path | Purpose |
 |---|---|---|
-| `scripts/notebooklm_client.py` | scripts/ | Core CLI: create, add, ask, generate, download, manage |
-| `scripts/pipeline.py` | scripts/ | Higher-level pipelines: research-to-article, research-to-social, trend-to-content, batch-digest |
-| `mcp-server/server.py` | mcp-server/ | FastMCP server (stdio + HTTP modes) |
-| `mcp-server/tools.py` | mcp-server/ | MCP tool implementations |
+| `scripts/notebooklm_client.py` | scripts/ | Core CLI (also: `notebooklm-skill` after pip install) |
+| `scripts/pipeline.py` | scripts/ | Higher-level pipelines (also: `notebooklm-pipeline` after pip install) |
+| `mcp_server/server.py` | mcp_server/ | FastMCP server (also: `notebooklm-mcp` after pip install) |
+| `mcp_server/tools.py` | mcp_server/ | MCP tool implementations |
 | `scripts/auth_helper.py` | scripts/ | Authentication helper |
 | `references/api_surface.md` | references/ | Full notebooklm-py v0.3.4 API documentation (8 sub-APIs, all methods) |
 | `references/output_formats.md` | references/ | JSON output format specifications for all API responses |
@@ -934,7 +955,7 @@ Common fixes:
 
 | Type | Generate | Download | Output Format | Processing Time |
 |---|---|---|---|---|
-| Audio (podcast) | `generate audio` | `download audio` | MP4 | 3-10 min |
+| Audio (podcast) | `generate audio` | `download audio` | M4A | 3-10 min |
 | Video | `generate video` | `download video` | MP4 | 5-15 min |
 | Cinematic Video | `generate cinematic-video` | `download video` | MP4 | 10-20 min |
 | Slide Deck | `generate slide-deck` | `download slide-deck` | PDF | 30-120 sec |

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "notebooklm-skill"
+version = "1.1.0"
+description = "NotebookLM research automation — CLI, MCP server, and Claude Code Skill"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+    "notebooklm-py>=0.3.4",
+    "playwright>=1.40.0",
+    "fastmcp>=0.1.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.25.0",
+    "feedparser>=6.0",
+]
+
+[project.scripts]
+notebooklm-skill    = "scripts.notebooklm_client:main"
+notebooklm-pipeline = "scripts.pipeline:main"
+notebooklm-mcp      = "mcp_server.server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scripts*", "mcp_server*"]

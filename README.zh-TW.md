@@ -57,38 +57,28 @@
 ## 快速開始
 
 ```bash
-# 1. 安裝
+# 方法 A：pip install（推薦）
 git clone https://github.com/claude-world/notebooklm-skill.git
 cd notebooklm-skill
-pip install -r requirements.txt   # 安裝 notebooklm-py v0.3.4
+pip install .                     # 安裝全域 CLI 命令
 
-# 2. Google 驗證（一次性，會開啟瀏覽器）
+# 方法 B：一鍵安裝（pip + Playwright + Claude Code Skill）
+./install.sh
+
+# Google 驗證（一次性，會開啟瀏覽器）
 python3 -m notebooklm login
-# -> 開啟 Chromium，登入 Google 帳號
-# -> Session 儲存至 ~/.notebooklm/storage_state.json
-# -> 之後所有操作都是純 HTTP（不需要瀏覽器）
 
-# 3. 建立第一個筆記本
-python scripts/notebooklm_client.py create \
-  --title "我的研究" \
-  --sources https://example.com/article
-
-# 4. 提問研究問題
-python scripts/notebooklm_client.py ask \
-  --notebook "我的研究" \
-  --query "這篇文章的關鍵發現是什麼？"
-
-# 5. 生成 Podcast
-python scripts/notebooklm_client.py podcast \
-  --notebook "我的研究" \
-  --lang zh-TW \
-  --output podcast.m4a
-
-# 6. 驗證登入狀態
-python scripts/auth_helper.py verify
+# 使用全域命令
+notebooklm-skill create --title "我的研究" --sources https://example.com/article
+notebooklm-skill ask --notebook "我的研究" --query "這篇文章的關鍵發現是什麼？"
+notebooklm-skill podcast --notebook "我的研究" --lang zh-TW --output podcast.m4a
+notebooklm-pipeline research-to-article --sources https://example.com --title "主題"
+notebooklm-mcp                   # 啟動 MCP Server（stdio 模式）
 ```
 
-完整安裝指南請參考 [docs/SETUP.md](docs/SETUP.md)。
+也可直接使用腳本：`python scripts/notebooklm_client.py create ...`
+
+完整安裝指南請參考 [docs/SETUP.zh-TW.md](docs/SETUP.zh-TW.md)。
 
 ## 驗證方式
 
@@ -111,7 +101,7 @@ Session 通常可維持數週。如遇驗證錯誤，重新執行 `login` 即可
 | **適合** | Claude Code 使用者，想在工作流中加入 NotebookLM | 任何 MCP 相容客戶端（Cursor、Gemini CLI 等） |
 | **設定** | 複製 Skill 到 `.claude/skills/` | 加入 MCP 設定 |
 | **觸發** | Claude 自動偵測相關需求 | 工具出現在客戶端工具列表 |
-| **設定檔** | `SKILL.md` + `.env` | `mcp.json` + `.env` |
+| **設定檔** | `SKILL.md` + `.env` | `.mcp.json` + `.env` |
 | **需求** | Python 3.10+, notebooklm-py | Python 3.10+, notebooklm-py |
 
 ## 功能
@@ -181,7 +171,7 @@ Session 通常可維持數週。如遇驗證錯誤，重新執行 `login` 即可
 |  +-----------------------------------------------------------+ |
 |  |  介面                                                      | |
 |  |  +-- scripts/          CLI 工具 (直接呼叫 notebooklm-py)  | |
-|  |  +-- mcp-server/       MCP 協定伺服器                      | |
+|  |  +-- mcp_server/       MCP 協定伺服器                      | |
 |  |  +-- SKILL.md          Claude Code Skill 定義              | |
 |  +-----------------------------------------------------------+ |
 +---------------------------------------------------------------+
@@ -313,60 +303,41 @@ ffmpeg -y \
 
 MCP Server 將 NotebookLM 操作公開為工具，任何 MCP 相容的客戶端都能使用。
 
-### Claude Code
-
-加入專案的 `.mcp.json`：
+`pip install .` 後，加入專案的 `.mcp.json`：
 
 ```json
 {
   "mcpServers": {
     "notebooklm": {
-      "command": "python",
-      "args": ["-m", "mcp-server"],
+      "command": "notebooklm-mcp"
+    }
+  }
+}
+```
+
+或使用腳本路徑：
+
+```json
+{
+  "mcpServers": {
+    "notebooklm": {
+      "command": "python3",
+      "args": ["mcp_server/server.py"],
       "cwd": "/path/to/notebooklm-skill"
     }
   }
 }
 ```
 
-### Cursor
-
-加入 Cursor MCP 設定（`~/.cursor/mcp.json`）：
-
-```json
-{
-  "mcpServers": {
-    "notebooklm": {
-      "command": "python",
-      "args": ["-m", "mcp-server"],
-      "cwd": "/path/to/notebooklm-skill"
-    }
-  }
-}
-```
-
-### Gemini CLI
-
-加入 Gemini CLI 設定：
-
-```json
-{
-  "mcpServers": {
-    "notebooklm": {
-      "command": "python",
-      "args": ["-m", "mcp-server"],
-      "cwd": "/path/to/notebooklm-skill"
-    }
-  }
-}
-```
+適用於 Claude Code、Cursor、Gemini CLI 等任何 MCP 相容客戶端。
 
 ## Claude Code Skill 安裝
 
-將 Skill 目錄複製到你的專案中：
-
 ```bash
-# 從你的專案根目錄
+# 方法 A：Symlink（git pull 自動更新）
+./install.sh
+
+# 方法 B：手動複製
 mkdir -p .claude/skills/notebooklm
 cp /path/to/notebooklm-skill/SKILL.md .claude/skills/notebooklm/
 cp /path/to/notebooklm-skill/scripts/*.py .claude/skills/notebooklm/scripts/
@@ -472,7 +443,7 @@ THREADS_TOKEN=your-threads-token       # 自動發布到 Threads
 ```bash
 git clone https://github.com/claude-world/notebooklm-skill.git
 cd notebooklm-skill
-pip install -r requirements.txt
+pip install -e .
 
 # 驗證
 python3 -m notebooklm login

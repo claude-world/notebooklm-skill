@@ -57,36 +57,26 @@ Sources (URLs, PDFs)          NotebookLM                Claude               Art
 ## Quick Start
 
 ```bash
-# 1. Install
+# Option A: pip install (recommended)
 git clone https://github.com/claude-world/notebooklm-skill.git
 cd notebooklm-skill
-pip install -r requirements.txt   # installs notebooklm-py v0.3.4
+pip install .                     # installs CLI commands globally
 
-# 2. Authenticate with Google (one-time, opens browser)
+# Option B: One-line install (pip + Playwright + Claude Code Skill)
+./install.sh
+
+# Authenticate with Google (one-time, opens browser)
 python3 -m notebooklm login
-# -> Opens Chromium, sign in to Google
-# -> Session saved to ~/.notebooklm/storage_state.json
-# -> All subsequent calls use pure HTTP (no browser needed)
 
-# 3. Create your first notebook
-python scripts/notebooklm_client.py create \
-  --title "My Research" \
-  --sources https://example.com/article
-
-# 4. Ask research questions
-python scripts/notebooklm_client.py ask \
-  --notebook "My Research" \
-  --query "What are the key findings?"
-
-# 5. Generate a podcast
-python scripts/notebooklm_client.py podcast \
-  --notebook "My Research" \
-  --lang en \
-  --output podcast.m4a
-
-# 6. Verify auth status
-python scripts/auth_helper.py verify
+# Use global commands
+notebooklm-skill create --title "My Research" --sources https://example.com/article
+notebooklm-skill ask --notebook "My Research" --query "What are the key findings?"
+notebooklm-skill podcast --notebook "My Research" --lang en --output podcast.m4a
+notebooklm-pipeline research-to-article --sources https://example.com --title "Topic"
+notebooklm-mcp                   # Start MCP server (stdio mode)
 ```
+
+Or use scripts directly: `python scripts/notebooklm_client.py create ...`
 
 See [docs/SETUP.md](docs/SETUP.md) for the full setup guide.
 
@@ -111,7 +101,7 @@ Session typically lasts weeks. Re-run `login` if you get authentication errors.
 | **Best for** | Claude Code users who want NotebookLM in their workflow | Any MCP-compatible client (Cursor, Gemini CLI, etc.) |
 | **Setup** | Copy skill to `.claude/skills/` | Add server to MCP config |
 | **Invocation** | Claude auto-detects when relevant | Tools appear in client tool list |
-| **Config** | `SKILL.md` + `.env` | `mcp.json` + `.env` |
+| **Config** | `SKILL.md` + `.env` | `.mcp.json` + `.env` |
 | **Requirements** | Python 3.10+, notebooklm-py | Python 3.10+, notebooklm-py |
 
 ## Features
@@ -181,7 +171,7 @@ All artifacts support language selection (e.g., `--lang zh-TW`).
 |  +-----------------------------------------------------------+ |
 |  |  Interfaces                                                | |
 |  |  +-- scripts/          CLI tools (notebooklm-py direct)   | |
-|  |  +-- mcp-server/       MCP protocol server                | |
+|  |  +-- mcp_server/       MCP protocol server                 | |
 |  |  +-- SKILL.md          Claude Code skill definition        | |
 |  +-----------------------------------------------------------+ |
 +---------------------------------------------------------------+
@@ -267,14 +257,26 @@ python scripts/notebooklm_client.py download --notebook "Research" --type slides
 
 ## MCP Server Setup
 
-Add to your project's `.mcp.json`:
+After `pip install .`, add to your project's `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "notebooklm": {
-      "command": "python",
-      "args": ["-m", "mcp-server"],
+      "command": "notebooklm-mcp"
+    }
+  }
+}
+```
+
+Or use the script directly:
+
+```json
+{
+  "mcpServers": {
+    "notebooklm": {
+      "command": "python3",
+      "args": ["mcp_server/server.py"],
       "cwd": "/path/to/notebooklm-skill"
     }
   }
@@ -286,6 +288,10 @@ Works with Claude Code, Cursor, Gemini CLI, and any MCP-compatible client.
 ## Claude Code Skill Setup
 
 ```bash
+# Option A: Symlink (auto-updates with git pull)
+./install.sh
+
+# Option B: Manual copy
 mkdir -p .claude/skills/notebooklm
 cp /path/to/notebooklm-skill/SKILL.md .claude/skills/notebooklm/
 cp /path/to/notebooklm-skill/scripts/*.py .claude/skills/notebooklm/scripts/
@@ -349,7 +355,7 @@ Claude will automatically detect the skill when you ask about research, Notebook
 # Development setup
 git clone https://github.com/claude-world/notebooklm-skill.git
 cd notebooklm-skill
-pip install -r requirements.txt
+pip install -e .
 python3 -m notebooklm login
 python -m pytest tests/
 ```
