@@ -7,7 +7,6 @@ All functions are async and return JSON-serializable dicts.
 
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
 from notebooklm import NotebookLMClient
@@ -475,8 +474,8 @@ async def trend_research(
     # Try to get trends from trend-pulse
     trends: list[str] = []
     try:
-        import subprocess
         import json
+        import subprocess
 
         trend_cmd = os.getenv("TREND_PULSE_CMD", "trend-pulse")
         result = subprocess.run(
