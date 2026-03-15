@@ -69,15 +69,18 @@ jobs:
         run: python -c "import json; [json.load(open(f)) for f in ['.mcp.json']]; print('JSON OK')"
 
       - name: Check pyproject.toml
-        run: python -c "
+        run: |
+          python3 -c "
           import tomllib
           d = tomllib.load(open('pyproject.toml','rb'))
           assert d['project']['version'], 'Missing version'
           assert d['project']['scripts'], 'Missing scripts'
-          print(f'pyproject.toml OK — v{d[\"project\"][\"version\"]}')
+          print(f'pyproject.toml OK — v' + d['project']['version'])
           "
 
       - name: Check no stale mcp-server refs in docs
         run: |
-          ! grep -rn 'mcp-server/' README.md README.zh-TW.md SKILL.md docs/ AGENTS.md 2>/dev/null || exit 1
+          if grep -rn 'mcp-server/' README.md README.zh-TW.md SKILL.md docs/ AGENTS.md 2>/dev/null; then
+            echo "ERROR: Found stale mcp-server/ references" && exit 1
+          fi
           echo "No stale mcp-server/ references"
