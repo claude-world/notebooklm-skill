@@ -703,20 +703,20 @@ def workflow_generate_all(args) -> None:
         "mind-map": "download_mind_map",
         "infographic": "download_infographic",
         "data-table": "download_data_table",
-        "study-guide": "download_study_guide",
+        "study-guide": "download_report",
     }
 
     FILE_EXTENSIONS = {
-        "audio": "mp3",
+        "audio": "m4a",
         "video": "mp4",
         "slides": "pdf",
-        "report": "pdf",
+        "report": "md",
         "quiz": "json",
         "flashcards": "json",
-        "mind-map": "svg",
+        "mind-map": "json",
         "infographic": "png",
         "data-table": "csv",
-        "study-guide": "pdf",
+        "study-guide": "md",
     }
 
     async def _run():
@@ -761,7 +761,8 @@ def workflow_generate_all(args) -> None:
                 try:
                     generate_method = getattr(client.artifacts, generate_method_name)
                     kwargs = {}
-                    if artifact_type in ("audio", "video"):
+                    if artifact_type in ("audio", "video", "slides", "report",
+                                         "infographic", "data-table", "study-guide"):
                         kwargs["language"] = language
                     status = await generate_method(nb.id, **kwargs)
                     generation_tasks[artifact_type] = status.task_id

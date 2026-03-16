@@ -255,11 +255,18 @@ _ARTIFACT_GENERATORS = {
     "study-guide": "generate_study_guide",
 }
 
-# Maps types to download methods (only the ones that have download support)
+# Maps types to (download_method, supports_output_format)
 _ARTIFACT_DOWNLOADERS = {
-    "audio": "download_audio",
-    "slides": "download_slide_deck",
-    "video": "download_video",
+    "audio":       ("download_audio",       False),
+    "video":       ("download_video",       False),
+    "slides":      ("download_slide_deck",  True),
+    "report":      ("download_report",      False),
+    "study-guide": ("download_report",      False),   # study-guide is a report subtype
+    "quiz":        ("download_quiz",        True),
+    "flashcards":  ("download_flashcards",  True),
+    "mind-map":    ("download_mind_map",    False),
+    "infographic": ("download_infographic", False),
+    "data-table":  ("download_data_table",  False),
 }
 
 
@@ -281,24 +288,47 @@ async def generate_artifact(
         notebook_id = await _resolve_notebook(client, name_or_id)
         method = getattr(client.artifacts, _ARTIFACT_GENERATORS[artifact_type])
 
-        # Build kwargs based on what each generator accepts
+        # Build kwargs based on what each generator accepts.
+        # See references/api_surface.md for full parameter lists.
         kwargs: dict[str, Any] = {}
-        if artifact_type in ("audio", "video", "slides"):
+
+        # language — accepted by most types except quiz, flashcards, mind-map
+        if artifact_type in ("audio", "video", "slides", "report",
+                             "infographic", "data-table", "study-guide"):
             kwargs["language"] = lang
-            if instructions:
+
+        # instructions — parameter name varies by type
+        if instructions:
+            if artifact_type in ("audio", "video", "slides", "quiz",
+                                 "flashcards", "infographic", "data-table"):
                 kwargs["instructions"] = instructions
-        elif artifact_type == "report":
-            # report_format instead of language
-            kwargs["report_format"] = instructions or "briefing_doc"
+            elif artifact_type in ("report", "study-guide"):
+                kwargs["extra_instructions"] = instructions
+
+        # report_format — only for report type (default "briefing_doc")
+        if artifact_type == "report":
+            kwargs["report_format"] = "briefing_doc"
 
         status = await method(notebook_id, **kwargs)
+
+        # mind-map returns a dict immediately, not a GenerationStatus
+        if artifact_type == "mind-map":
+            result: dict[str, Any] = {
+                "status": "ok",
+                "notebook_id": notebook_id,
+                "artifact_type": artifact_type,
+            }
+            if isinstance(status, dict):
+                for k, v in status.items():
+                    result[k] = v
+            return result
 
         # Wait for completion
         final = await client.artifacts.wait_for_completion(
             notebook_id, status.task_id, timeout=3600
         )
 
-        result: dict[str, Any] = {
+        result = {
             "status": "ok",
             "notebook_id": notebook_id,
             "artifact_type": artifact_type,
@@ -316,8 +346,9 @@ async def download_artifact(
     name_or_id: str,
     artifact_type: str,
     output_path: str,
+    output_format: str | None = None,
 ) -> dict[str, Any]:
-    """Download a generated artifact (audio, slides, or video) to a local file."""
+    """Download a generated artifact to a local file."""
     if artifact_type not in _ARTIFACT_DOWNLOADERS:
         return {
             "status": "failed",
@@ -327,8 +358,14 @@ async def download_artifact(
 
     async with _get_client() as client:
         notebook_id = await _resolve_notebook(client, name_or_id)
-        method = getattr(client.artifacts, _ARTIFACT_DOWNLOADERS[artifact_type])
-        path = await method(notebook_id, output_path=output_path)
+        method_name, supports_format = _ARTIFACT_DOWNLOADERS[artifact_type]
+        method = getattr(client.artifacts, method_name)
+
+        kwargs: dict[str, Any] = {"output_path": output_path}
+        if supports_format and output_format is not None:
+            kwargs["output_format"] = output_format
+
+        path = await method(notebook_id, **kwargs)
         return {
             "status": "ok",
             "notebook_id": notebook_id,

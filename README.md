@@ -123,16 +123,16 @@ Session typically lasts weeks. Re-run `login` if you get authentication errors.
 |---|---|---|
 | **Audio** | M4A | AI-generated podcast discussion |
 | **Video** | MP4 | Video summary with visuals |
-| **Slides** | PDF | Presentation deck |
-| **Report** | PDF | Comprehensive written report |
-| **Quiz** | JSON | Multiple-choice assessment questions |
-| **Flashcards** | JSON | Study flashcard deck |
-| **Mind map** | SVG | Visual concept map |
+| **Slides** | PDF / PPTX | Presentation deck |
+| **Report** | Markdown | Comprehensive written report |
+| **Quiz** | JSON / Markdown / HTML | Multiple-choice assessment questions |
+| **Flashcards** | JSON / Markdown / HTML | Study flashcard deck |
+| **Mind map** | JSON | Visual concept map |
 | **Infographic** | PNG | Visual data summary |
 | **Data table** | CSV | Structured data extraction |
-| **Study guide** | PDF | Structured learning material |
+| **Study guide** | Markdown | Structured learning material |
 
-All artifacts support language selection (e.g., `--lang zh-TW`).
+Most artifacts support language selection (e.g., `--lang zh-TW`). Exceptions: quiz, flashcards, mind-map.
 
 > **Note**: NotebookLM returns audio in MPEG-4 (M4A) format, not MP3.
 

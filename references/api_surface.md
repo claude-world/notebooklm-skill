@@ -234,8 +234,15 @@ class DriveMimeType(Enum):
 |---|---|---|---|
 | `poll_status(notebook_id, task_id)` | `notebook_id: str, task_id: str` | `GenerationStatus` | Check generation progress |
 | `wait_for_completion(notebook_id, task_id, ...)` | `notebook_id: str, task_id: str, timeout: float=300.0` | `GenerationStatus` | Wait until artifact is done |
-| `download_audio(notebook_id, output_path, artifact_id?)` | `notebook_id: str, output_path: str, artifact_id: str \| None` | `str` | Download audio to file |
-| `download_video(notebook_id, output_path, artifact_id?)` | `notebook_id: str, output_path: str, artifact_id: str \| None` | `str` | Download video to file |
+| `download_audio(notebook_id, output_path, artifact_id?)` | `notebook_id: str, output_path: str, artifact_id: str \| None` | `str` | Download audio to file (.m4a) |
+| `download_video(notebook_id, output_path, artifact_id?)` | `notebook_id: str, output_path: str, artifact_id: str \| None` | `str` | Download video to file (.mp4) |
+| `download_slide_deck(notebook_id, output_path, artifact_id?, output_format?)` | `notebook_id: str, output_path: str, artifact_id: str \| None, output_format: str="pdf"` | `str` | Download slides (PDF or PPTX) |
+| `download_report(notebook_id, output_path, artifact_id?)` | `notebook_id: str, output_path: str, artifact_id: str \| None` | `str` | Download report (Markdown) |
+| `download_quiz(notebook_id, output_path, artifact_id?, output_format?)` | `notebook_id: str, output_path: str, artifact_id: str \| None, output_format: str="json"` | `str` | Download quiz (JSON, Markdown, or HTML) |
+| `download_flashcards(notebook_id, output_path, artifact_id?, output_format?)` | `notebook_id: str, output_path: str, artifact_id: str \| None, output_format: str="json"` | `str` | Download flashcards (JSON, Markdown, or HTML) |
+| `download_mind_map(notebook_id, output_path, artifact_id?)` | `notebook_id: str, output_path: str, artifact_id: str \| None` | `str` | Download mind map (JSON) |
+| `download_infographic(notebook_id, output_path, artifact_id?)` | `notebook_id: str, output_path: str, artifact_id: str \| None` | `str` | Download infographic (PNG) |
+| `download_data_table(notebook_id, output_path, artifact_id?)` | `notebook_id: str, output_path: str, artifact_id: str \| None` | `str` | Download data table (CSV) |
 | `get_report_content(notebook_id, artifact_id?)` | `notebook_id: str, artifact_id: str \| None` | `str` | Get report markdown text |
 | `get_quiz_data(notebook_id, artifact_id?)` | `notebook_id: str, artifact_id: str \| None` | `dict` | Get quiz as structured data |
 | `get_flashcard_data(notebook_id, artifact_id?)` | `notebook_id: str, artifact_id: str \| None` | `dict` | Get flashcards as structured data |
@@ -630,8 +637,17 @@ notebooklm generate infographic NOTEBOOK_ID
 notebooklm generate slide-deck NOTEBOOK_ID
 notebooklm generate data-table NOTEBOOK_ID
 notebooklm generate mind-map NOTEBOOK_ID
-notebooklm download audio NOTEBOOK_ID output.mp4
+notebooklm generate study-guide NOTEBOOK_ID
+notebooklm download audio NOTEBOOK_ID output.m4a
 notebooklm download video NOTEBOOK_ID output.mp4
+notebooklm download slide-deck NOTEBOOK_ID output.pdf
+notebooklm download report NOTEBOOK_ID output.md
+notebooklm download study-guide NOTEBOOK_ID output.md
+notebooklm download quiz NOTEBOOK_ID output.json
+notebooklm download flashcards NOTEBOOK_ID output.json
+notebooklm download mind-map NOTEBOOK_ID output.json
+notebooklm download infographic NOTEBOOK_ID output.png
+notebooklm download data-table NOTEBOOK_ID output.csv
 
 # Research
 notebooklm research start NOTEBOOK_ID "query"

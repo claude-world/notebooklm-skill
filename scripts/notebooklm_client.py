@@ -158,7 +158,7 @@ async def _find_notebook(client, identifier: str):
 
 # Maps --type value to (generate_method_name, download_method_name, default_extension)
 ARTIFACT_TYPES = {
-    "audio":       ("generate_audio",            "download_audio",       "mp3"),
+    "audio":       ("generate_audio",            "download_audio",       "m4a"),
     "video":       ("generate_video",            "download_video",       "mp4"),
     "cinematic":   ("generate_cinematic_video",  "download_video",       "mp4"),
     "slides":      ("generate_slide_deck",       "download_slide_deck",  "pdf"),
@@ -167,8 +167,8 @@ ARTIFACT_TYPES = {
     "flashcards":  ("generate_flashcards",       "download_flashcards",  "json"),
     "mind-map":    ("generate_mind_map",         "download_mind_map",    "json"),
     "infographic": ("generate_infographic",      "download_infographic", "png"),
-    "data-table":  ("generate_data_table",       "download_data_table",  "json"),
-    "study-guide": ("generate_study_guide",      None,                   "md"),
+    "data-table":  ("generate_data_table",       "download_data_table",  "csv"),
+    "study-guide": ("generate_study_guide",      "download_report",      "md"),
 }
 
 
@@ -441,11 +441,9 @@ async def cmd_generate(args) -> None:
             try:
                 dl_method = getattr(client.artifacts, dl_method_name)
                 dl_kwargs = {"notebook_id": nb_id, "output_path": output_path}
-                # Slides support output_format
-                if artifact_type == "slides":
-                    dl_kwargs["output_format"] = "pdf"
-                elif artifact_type == "quiz":
-                    dl_kwargs["output_format"] = "json"
+                fmt = getattr(args, "output_format", None)
+                if fmt and artifact_type in ("slides", "quiz", "flashcards"):
+                    dl_kwargs["output_format"] = fmt
                 path = await dl_method(**dl_kwargs)
                 output["downloaded_to"] = str(path)
                 _err(f"Downloaded to {path}")
@@ -485,11 +483,9 @@ async def cmd_download(args) -> None:
         try:
             dl_method = getattr(client.artifacts, dl_method_name)
             dl_kwargs = {"notebook_id": nb_id, "output_path": output_path}
-            # Some types support output_format
-            if artifact_type == "slides":
-                dl_kwargs["output_format"] = "pdf"
-            elif artifact_type == "quiz":
-                dl_kwargs["output_format"] = "json"
+            fmt = getattr(args, "output_format", None)
+            if fmt and artifact_type in ("slides", "quiz", "flashcards"):
+                dl_kwargs["output_format"] = fmt
             path = await dl_method(**dl_kwargs)
         except Exception as exc:
             _json_error(f"Failed to download {artifact_type}: {exc}", "DOWNLOAD_ERROR")
@@ -640,8 +636,9 @@ async def cmd_qa(args) -> None:
         if output_path:
             _err(f"Downloading quiz to {output_path}...")
             try:
+                fmt = getattr(args, "output_format", None) or "json"
                 path = await client.artifacts.download_quiz(
-                    nb_id, output_path=output_path, output_format="json"
+                    nb_id, output_path=output_path, output_format=fmt
                 )
                 output["downloaded_to"] = str(path)
                 _err(f"Downloaded to {path}")
@@ -670,12 +667,12 @@ Examples:
     %(prog)s add-source --notebook "My Research" --text "Some notes" --text-title "My Notes"
     %(prog)s ask --notebook "My Research" --query "What are the key points?"
     %(prog)s summarize --notebook "My Research"
-    %(prog)s generate --notebook "My Research" --type audio --lang en --output podcast.mp3
+    %(prog)s generate --notebook "My Research" --type audio --lang en --output podcast.m4a
     %(prog)s generate --notebook "My Research" --type slides --output slides.pdf
     %(prog)s generate --notebook "My Research" --type report --output report.md
     %(prog)s generate --notebook "My Research" --type mind-map
-    %(prog)s download --notebook "My Research" --type audio --output podcast.mp3
-    %(prog)s podcast --notebook "My Research" --lang zh-TW --output podcast.mp3
+    %(prog)s download --notebook "My Research" --type audio --output podcast.m4a
+    %(prog)s podcast --notebook "My Research" --lang zh-TW --output podcast.m4a
     %(prog)s qa --notebook "My Research" --output quiz.json
     %(prog)s research --notebook "My Research" --query "latest trends" --mode fast
     %(prog)s delete --notebook "My Research"
@@ -726,6 +723,7 @@ Examples:
     p_gen.add_argument("--lang", default="en", help="Language code (default: en)")
     p_gen.add_argument("--instructions", default=None, help="Custom instructions for generation")
     p_gen.add_argument("--output", default=None, help="Output file path (auto-download after generation)")
+    p_gen.add_argument("--output-format", default=None, help="Output format: slides=pdf/pptx, quiz/flashcards=json/markdown/html")
     p_gen.add_argument("--report-format", default="briefing_doc", help="Report format (for --type report)")
 
     # download
@@ -737,6 +735,7 @@ Examples:
         help="Type of artifact to download",
     )
     p_dl.add_argument("--output", required=True, help="Output file path")
+    p_dl.add_argument("--output-format", default=None, help="Output format: slides=pdf/pptx, quiz/flashcards=json/markdown/html")
 
     # research
     p_research = subparsers.add_parser("research", help="Run deep web research on a topic")
@@ -755,7 +754,8 @@ Examples:
     p_qa = subparsers.add_parser("qa", help="Generate quiz from notebook content (alias)")
     p_qa.add_argument("--notebook", required=True, help="Notebook name or ID")
     p_qa.add_argument("--instructions", default=None, help="Custom instructions")
-    p_qa.add_argument("--output", default=None, help="Output file path for downloaded quiz JSON")
+    p_qa.add_argument("--output", default=None, help="Output file path for downloaded quiz")
+    p_qa.add_argument("--output-format", default=None, help="Output format: json (default), markdown, or html")
 
     args = parser.parse_args()
 

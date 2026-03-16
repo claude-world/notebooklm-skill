@@ -90,8 +90,9 @@ mcp = FastMCP(
     "notebooklm",
     instructions=(
         "NotebookLM research engine — create notebooks, ask questions, "
-        "generate artifacts (audio/video/slides/reports/quizzes), "
-        "and run full research-to-content pipelines."
+        "generate and download 10 artifact types (audio, video, slides, "
+        "report, study-guide, quiz, flashcards, mind-map, infographic, "
+        "data-table), and run full research-to-content pipelines."
     ),
 )
 
@@ -277,17 +278,20 @@ async def nlm_generate(
         notebook: Notebook ID or title.
         type: Artifact type — one of: audio, video, slides, report, quiz,
               flashcards, mind-map, infographic, data-table, study-guide.
-        lang: Language code (default "en"). Used for audio, video, slides.
-        instructions: Optional generation instructions. For reports, this
-                      sets the report_format (default "briefing_doc").
+        lang: Language code (default "en"). Used for audio, video, slides,
+              report, infographic, data-table, study-guide.
+        instructions: Optional generation instructions. Passed as
+                      "instructions" for audio/video/slides/quiz/flashcards/
+                      infographic/data-table, or as "extra_instructions" for
+                      report/study-guide. Not used for mind-map.
 
     Returns:
         Generation status with task_id and completion details.
 
     Example:
         nlm_generate(notebook="AI Safety", type="audio", lang="en")
-        nlm_generate(notebook="AI Safety", type="report", instructions="briefing_doc")
-        nlm_generate(notebook="AI Safety", type="quiz")
+        nlm_generate(notebook="AI Safety", type="report", instructions="Add executive summary")
+        nlm_generate(notebook="AI Safety", type="quiz", instructions="Focus on chapter 3")
     """
     try:
         return await generate_artifact(notebook, type, lang=lang, instructions=instructions)
@@ -300,24 +304,41 @@ async def nlm_download(
     notebook: str,
     type: str,
     output_path: str,
+    output_format: str | None = None,
 ) -> dict:
     """Download a generated artifact to a local file.
 
-    Only supported for: audio (.m4a), slides (.pdf), video (.mp4).
+    Supports all 10 artifact types:
+      - audio → .m4a
+      - video → .mp4
+      - slides → PDF (default) or PPTX (output_format="pptx")
+      - report → Markdown
+      - study-guide → Markdown
+      - quiz → JSON (default), Markdown ("markdown"), or HTML ("html")
+      - flashcards → JSON (default), Markdown ("markdown"), or HTML ("html")
+      - mind-map → JSON
+      - infographic → PNG
+      - data-table → CSV
 
     Args:
         notebook: Notebook ID or title.
-        type: Artifact type — audio, slides, or video.
+        type: Artifact type — audio, video, slides, report, study-guide,
+              quiz, flashcards, mind-map, infographic, or data-table.
         output_path: Local file path to save the artifact.
+        output_format: Optional output format for types that support it.
+                       slides: "pdf" (default) or "pptx".
+                       quiz/flashcards: "json" (default), "markdown", or "html".
 
     Returns:
         Download status and output file path.
 
     Example:
-        nlm_download(notebook="AI Safety", type="audio", output_path="output/podcast.m4a")
+        nlm_download(notebook="AI Safety", type="audio", output_path="podcast.m4a")
+        nlm_download(notebook="AI Safety", type="slides", output_path="deck.pptx", output_format="pptx")
+        nlm_download(notebook="AI Safety", type="quiz", output_path="quiz.md", output_format="markdown")
     """
     try:
-        return await download_artifact(notebook, type, output_path)
+        return await download_artifact(notebook, type, output_path, output_format=output_format)
     except Exception as exc:
         return {"error": str(exc), "status": "failed"}
 
