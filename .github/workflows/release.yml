@@ -12,7 +12,7 @@ jobs:
       id-token: write          # Required for PyPI trusted publishing
     environment: pypi           # Must match PyPI trusted publisher config
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
