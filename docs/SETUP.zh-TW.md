@@ -1,43 +1,21 @@
 # 安裝指南
 
-notebooklm-skill 的完整安裝說明。
+本指南會安裝 `notebooklm-skill` 1.3.x、驗證 NotebookLM profile，並設定
+Claude Code Skill 或 MCP Server。
 
-**[English Version](SETUP.md)**
+## 系統需求
 
----
+- Python 3.10 以上
+- 可使用 NotebookLM 的 Google 帳號
+- 互動登入流程所需的 Chromium
+- 僅在使用 `scripts/make_video.sh` 時需要 `ffmpeg` 與 Poppler
 
-## 前置需求
+NotebookLM 採瀏覽器驗證，不需要應用程式 API Key。儲存的 browser state
+含有 session cookie，必須視同密碼保護。
 
-- **Python 3.10+**（`python3 --version`）
-- **pip**（`pip --version`）
-- **Google 帳號**，可存取 [NotebookLM](https://notebooklm.google.com/)
+## 安裝
 
-## 1. 安裝
-
-### 方法 A：uvx（推薦 — 零安裝）
-
-```bash
-uvx notebooklm-skill --help                    # 直接執行 CLI
-uvx --from notebooklm-skill notebooklm-mcp     # 啟動 MCP Server
-```
-
-不需要 clone、不需要安裝 — `uvx` 自動從 [PyPI](https://pypi.org/project/notebooklm-skill/) 下載並執行。
-
-### 方法 B：pip install（從 PyPI）
-
-```bash
-pip install notebooklm-skill
-```
-
-### 方法 C：從原始碼安裝
-
-```bash
-git clone https://github.com/claude-world/notebooklm-skill.git
-cd notebooklm-skill
-pip install .                     # 或：pip install -r requirements.txt
-```
-
-### 方法 D：一鍵安裝（pip + Playwright + Claude Code Skill）
+### 從原始碼安裝
 
 ```bash
 git clone https://github.com/claude-world/notebooklm-skill.git
@@ -45,107 +23,105 @@ cd notebooklm-skill
 ./install.sh
 ```
 
-安裝後，三個全域命令可用：
+安裝器使用 `${XDG_DATA_HOME:-~/.local/share}/notebooklm-skill/venv` 專用環境，
+不會因 PEP 668 而修改失敗的系統 Python。指令會連結至
+`${XDG_BIN_HOME:-~/.local/bin}`；如有需要，請將它加入 `PATH`。
 
-| 命令 | 說明 |
-|------|------|
-| `notebooklm-skill` | 核心 CLI（create、ask、generate、download 等） |
-| `notebooklm-pipeline` | 工作流編排（research-to-article 等） |
-| `notebooklm-mcp` | MCP Server（Claude Code / Cursor / Gemini CLI） |
+可用 `NOTEBOOKLM_INSTALL_ROOT`、`XDG_BIN_HOME` 或 `NOTEBOOKLM_PYTHON` 覆寫位置。
+預設安裝完成後不依賴原始碼目錄；開發者可設定 `NOTEBOOKLM_INSTALL_EDITABLE=1`
+改用 editable install。
 
-驗證安裝：
+Headless 或分階段安裝可設定 `NOTEBOOKLM_SKIP_BROWSER=1`、
+`NOTEBOOKLM_SKIP_SKILL=1` 或 `NOTEBOOKLM_SKIP_AUTH_CHECK=1`。若略過 Chromium，
+必須先在安裝環境執行 `python -m playwright install chromium`，瀏覽器 setup 才可用。
+
+### 從 PyPI 安裝
 
 ```bash
-notebooklm-skill list             # 或：python scripts/notebooklm_client.py list
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install notebooklm-skill
+python -m playwright install chromium
 ```
 
-## 2. Google 驗證
+### 使用 uvx
 
-notebooklm-py 使用瀏覽器登入 Google。不需要 API Key、不需要 OAuth Client ID、不需要 Google Cloud 專案。
-
-### 步驟 2a：執行登入
+以臨時隔離環境執行：
 
 ```bash
-uvx notebooklm login              # 使用 uvx（推薦）
-python3 -m notebooklm login       # 使用 pip install
+uvx --from notebooklm-skill notebooklm-skill --help
+uvx --from notebooklm-skill notebooklm-mcp --help
 ```
 
-這會：
-1. 開啟 Chromium 瀏覽器（需要時自動安裝）
-2. 顯示 Google 登入頁面 — 使用你的 Google 帳號登入
-3. 登入後自動儲存 Session 至 `~/.notebooklm/storage_state.json`
-4. 之後所有操作都是純 HTTP 呼叫（不再需要瀏覽器）
+## 驗證
 
-### 步驟 2b：驗證登入狀態
+已安裝套件：
 
 ```bash
-uvx notebooklm-skill list         # 使用 uvx
-notebooklm-skill list              # 使用 pip install
+notebooklm-auth setup
+notebooklm-auth verify
 ```
 
-預期輸出：你的 NotebookLM 筆記本的 JSON 陣列（可能是空的 `[]`）。
-
-### 步驟 2c：（選用）建立 .env
+若隨附 Chromium 不適用，可改用系統安裝的 Google Chrome：
 
 ```bash
-cp .env.example .env
+notebooklm-auth setup --browser chrome --fresh
 ```
 
-編輯 `.env` 設定預設值：
+零安裝的上游登入：
 
 ```bash
-# 選用：預設設定
-NOTEBOOKLM_DEFAULT_DEPTH=5
-NOTEBOOKLM_DEFAULT_FORMAT=json
-NOTEBOOKLM_MAX_SOURCES=50
-
-# 選用：trend-pulse 整合
-TREND_PULSE_URL=http://localhost:3002
-
-# 選用：threads-viral-agent 整合
-THREADS_TOKEN=your-threads-token
+uvx --from notebooklm-py notebooklm login
 ```
 
-> **注意**：不需要 Google API 金鑰或 OAuth 憑證。驗證完全透過瀏覽器 Session 處理。
-
-## 3. 驗證設定
+用具名 profile 分隔帳號：
 
 ```bash
-# 列出現有 NotebookLM 筆記本（可能是空的）
+notebooklm-auth --profile work setup
+notebooklm-auth --profile work verify
+notebooklm-skill --profile work list
+```
+
+也可用 `NOTEBOOKLM_PROFILE=work` 選擇 profile。目前的 `notebooklm-py` 通常將
+profile 儲存在 `~/.notebooklm/profiles/<profile>/storage_state.json`。不可提交或
+分享這些檔案。
+
+只登出指定 profile：
+
+```bash
+notebooklm-auth --profile work clear --yes
+```
+
+## 驗證 CLI
+
+```bash
 notebooklm-skill list
-
-# 建立測試筆記本
-notebooklm-skill create \
-  --title "測試筆記本" \
-  --sources "https://zh.wikipedia.org/wiki/大型語言模型"
-
-# 提問
-notebooklm-skill ask \
-  --notebook "測試筆記本" \
-  --query "什麼是大型語言模型？"
-
-# 清理
-notebooklm-skill delete --notebook "測試筆記本"
+notebooklm-skill create --title "安裝測試" --text-sources "Hello NotebookLM" --strict
+notebooklm-skill ask --notebook "安裝測試" --query "這個來源在說什麼？"
+notebooklm-skill delete --notebook "安裝測試" --yes
 ```
 
-如果所有指令都成功，你的設定就完成了。
+每個指令都將 JSON 寫到 stdout。非零 exit code 表示未完整達成契約；來源層級
+的部分失敗也會如實寫入 JSON。
 
-## 4. （選用）MCP Server 設定
+## 安裝 Claude Code Skill
 
-MCP Server 讓任何 MCP 相容的客戶端（Claude Code、Cursor、Gemini CLI）能使用 NotebookLM 作為工具。
-
-### 啟動 Server
+原始碼安裝器會自動完成。PyPI 或專案內安裝可執行：
 
 ```bash
-notebooklm-mcp                   # pip install . 後可用
-# 或：python3 mcp_server/server.py
+# 使用者範圍：~/.claude/skills/notebooklm-research/SKILL.md
+notebooklm-install-skill
+
+# 專案範圍：.claude/skills/notebooklm-research/SKILL.md
+notebooklm-install-skill --scope project
 ```
 
-Server 預設使用 stdio（標準 MCP 傳輸協定）。
+內容不同時必須指定 `--force` 才會覆寫，且會先建立 timestamp 備份。安裝器
+拒絕 symlink 目標。
 
-### 註冊到 Claude Code
+## 設定 MCP
 
-加入專案的 `.mcp.json`（推薦 — 不需要預先安裝）：
+使用專案的 `.mcp.json` 或等效設定：
 
 ```json
 {
@@ -158,104 +134,72 @@ Server 預設使用 stdio（標準 MCP 傳輸協定）。
 }
 ```
 
-或者已透過 `pip install notebooklm-skill` 安裝：
+若已在本機安裝，將 `command` 改為 `notebooklm-mcp` 並移除 `args`。
 
-```json
-{
-  "mcpServers": {
-    "notebooklm": {
-      "command": "notebooklm-mcp"
-    }
-  }
-}
-```
+重啟 MCP 客戶端後呼叫 `nlm_list`。操作例外會成為真正的 MCP tool error，
+不會偽裝成成功字典；刪除筆記本必須傳入 `confirm=true`。
 
-重啟 Claude Code，你應該能看到 `notebooklm` 工具。
-
-### 註冊到 Cursor
-
-加入 `~/.cursor/mcp.json`（格式同上）。
-
-## 5. （選用）Claude Code Skill 安裝
+HTTP 模式僅供本機整合：
 
 ```bash
-# 方法 A：Symlink（git pull 自動更新）— ./install.sh 會自動完成
-ln -s /path/to/notebooklm-skill/SKILL.md ~/.claude/skills/notebooklm-research.md
-
-# 方法 B：手動複製
-mkdir -p .claude/skills/notebooklm
-cp /path/to/notebooklm-skill/SKILL.md .claude/skills/notebooklm/
-cp -r /path/to/notebooklm-skill/scripts/ .claude/skills/notebooklm/scripts/
-cp /path/to/notebooklm-skill/requirements.txt .claude/skills/notebooklm/
+notebooklm-mcp --http --host 127.0.0.1 --port 8765
 ```
 
-Claude 會自動偵測 Skill。當你提到 NotebookLM 研究或內容創作時就會觸發。
+非 loopback 綁定會被拒絕。除非前方已有驗證過的 TLS reverse proxy 與主機存取
+控制，否則不可繞過此限制。
 
-## 6. （選用）trend-pulse 整合
+## 選用趨勢整合
 
-[trend-pulse](https://github.com/claude-world/trend-pulse) 提供熱門話題發現。啟用整合：
-
-1. 安裝並執行 trend-pulse（參考其 README）
-2. 加入 `.env`：
+`notebooklm-pipeline trend-to-content` 與 `nlm_trend_research` 需要
+`trend-pulse` 執行檔：
 
 ```bash
-TREND_PULSE_URL=http://localhost:3002
+export TREND_PULSE_CMD=/absolute/path/to/trend-pulse
+notebooklm-pipeline trend-to-content --geo TW --count 5 --platform threads
 ```
 
-## 7. 疑難排解
+此值會解析為執行檔與參數，絕不傳入 shell。Pipeline 只產生草稿，不會發布。
 
-### 「瀏覽器沒有開啟」
+## 疑難排解
 
-```
-Error: Browser not found
-```
-
-**修復**：安裝 Playwright 瀏覽器：
+### 驗證不存在或過期
 
 ```bash
-python3 -m playwright install chromium
+notebooklm-auth verify
+notebooklm-auth setup
 ```
 
-### 「Session 過期」
+確認 setup 與失敗指令使用同一個 `--profile` 或 `NOTEBOOKLM_PROFILE`。
 
-```
-Error: Authentication failed
-```
+### 執行 `./install.sh` 後找不到指令
 
-**修復**：重新登入：
+將指令目錄加入 shell 設定：
 
 ```bash
-python scripts/auth_helper.py clear
-python3 -m notebooklm login
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### 「MCP Server 無法連線」
+### 產出物生成逾時
 
-**修復**：確認：
-1. MCP 設定中的 `cwd` 路徑是絕對路徑
-2. Shell 中可使用 Python 3.10+（`python --version`）
-3. 已安裝依賴（`pip install -r requirements.txt`）
-
-### 「產出物生成超時」
-
-音檔和影片生成可能需要 5-10 分鐘。如果客戶端超時（600 秒），產出物可能仍在 NotebookLM 伺服器上生成。稍後用 `download` 指令嘗試下載：
+Google 端任務可能仍在執行。列出產出物，出現後以精確 ID 下載：
 
 ```bash
-python scripts/notebooklm_client.py download \
-  --notebook "你的筆記本" \
-  --type audio \
-  --output podcast.m4a
+notebooklm-skill list-artifacts --notebook NOTEBOOK_ID
+notebooklm-skill download --notebook NOTEBOOK_ID --type slides \
+  --artifact-id ARTIFACT_ID --output deck.pdf
 ```
 
-### 「音檔無法播放」
+### 輸出檔已存在
 
-NotebookLM 回傳的音檔實際上是 MPEG-4 (M4A) 格式，不是 MP3。請使用 `.m4a` 副檔名：
+換一個路徑，或只在確實要覆寫時加上 `--force`。Symlink 目的地永遠會被拒絕。
+
+### 缺少瀏覽器
+
+在安裝 `notebooklm-skill` 的同一環境執行：
 
 ```bash
-# 如果儲存為 .mp3，改名即可
-mv podcast.mp3 podcast.m4a
+python -m playwright install chromium
 ```
 
-### 需要更多幫助？
-
-在 [github.com/claude-world/notebooklm-skill/issues](https://github.com/claude-world/notebooklm-skill/issues) 開 Issue。
+一般缺陷請使用 repository issue template；漏洞請依 [SECURITY.md](../SECURITY.md)
+提供的私人管道回報。

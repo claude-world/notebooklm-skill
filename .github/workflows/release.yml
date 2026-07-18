@@ -4,29 +4,48 @@ on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: write
+  id-token: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write          # Required for PyPI trusted publishing
-    environment: pypi           # Must match PyPI trusted publisher config
+    environment: pypi
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
-      - name: Build package
+      - name: Install quality and build dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+
+      - name: Verify tag matches package version
         run: |
-          pip install build
+          RELEASE_TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "$RELEASE_TAG_VERSION" = "$PACKAGE_VERSION"
+
+      - name: Quality gate
+        run: |
+          ruff check .
+          ruff format --check .
+          mypy scripts mcp_server
+          pytest -q --cov --cov-report=term-missing
+          bash -n install.sh scripts/make_video.sh
+
+      - name: Build and validate distributions
+        run: |
           python -m build
+          twine check dist/*
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Create GitHub Release
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

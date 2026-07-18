@@ -8,22 +8,22 @@ This project bridges Google NotebookLM's research capabilities with AI content g
 Feed it URLs, PDFs, or trending topics — it creates NotebookLM notebooks, runs deep research,
 and produces structured output: articles, social posts, podcasts, videos, slides, and more.
 
-Built on [notebooklm-py](https://pypi.org/project/notebooklm-py/) v0.3.4 — pure async Python.
+Built on [notebooklm-py](https://pypi.org/project/notebooklm-py/) 0.7.x — pure async Python.
 
 ## Authentication
 
 NotebookLM uses browser-based Google login (no API keys needed):
 
 ```bash
-python3 -m notebooklm login          # One-time browser auth
-python scripts/auth_helper.py verify  # Verify session
+notebooklm-auth setup   # One-time browser auth
+notebooklm-auth verify  # Read-only session verification
 ```
 
-Session stored at `~/.notebooklm/storage_state.json`. Lasts weeks.
+Sessions are profile-aware and stored under `~/.notebooklm/profiles/` by default.
 
 ## CLI Commands
 
-Three global commands are available after `pip install .`:
+Five global commands are available after installation:
 
 ### `notebooklm-skill` — Core Operations
 
@@ -31,9 +31,9 @@ Three global commands are available after `pip install .`:
 notebooklm-skill create --title "Research" --sources https://example.com
 notebooklm-skill list
 notebooklm-skill ask --notebook "Research" --query "Key findings?"
-notebooklm-skill generate audio --notebook "Research" --language en
-notebooklm-skill download audio --notebook "Research" --output podcast.m4a
-notebooklm-skill delete --notebook "Research"
+notebooklm-skill generate --type audio --notebook "Research" --lang en
+notebooklm-skill download --type audio --notebook "Research" --output podcast.m4a
+notebooklm-skill delete --notebook "Research" --yes
 ```
 
 ### `notebooklm-pipeline` — Workflow Orchestration
@@ -53,6 +53,13 @@ notebooklm-mcp            # stdio mode (Claude Code, Cursor)
 notebooklm-mcp --http     # HTTP mode on port 8765
 ```
 
+### Authentication and Skill install
+
+```bash
+notebooklm-auth --profile work setup
+notebooklm-install-skill --scope project
+```
+
 ## MCP Tools (13)
 
 | Tool | Description |
@@ -63,7 +70,7 @@ notebooklm-mcp --http     # HTTP mode on port 8765
 | `nlm_add_source` | Add source to existing notebook |
 | `nlm_ask` | Ask question (returns answer + citations) |
 | `nlm_summarize` | Get notebook summary |
-| `nlm_generate` | Generate artifact (9 types, infographic excluded) |
+| `nlm_generate` | Generate one of 11 canonical artifact types |
 | `nlm_download` | Download generated artifact |
 | `nlm_list_sources` | List sources in notebook |
 | `nlm_list_artifacts` | List generated artifacts |
@@ -71,11 +78,10 @@ notebooklm-mcp --http     # HTTP mode on port 8765
 | `nlm_research_pipeline` | Full research pipeline |
 | `nlm_trend_research` | Trend-to-research pipeline |
 
-## Artifact Types (9 downloadable)
+## Artifact Types (11 canonical types)
 
-audio, video, slides, report, quiz, flashcards, mind-map, data-table, study-guide
-
-> ⚠️ `infographic`: generation works but download is unreliable. Use `slides` instead.
+audio, video, cinematic, slides, report, study-guide, quiz, flashcards, mind-map,
+infographic, data-table
 
 ## Project Structure
 

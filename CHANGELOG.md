@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-07-18
+
+### Added
+
+- Shared `notebooklm-py` 0.7.x compatibility layer used by CLI, pipelines, and MCP
+- Profile-aware `notebooklm-auth` setup, verification, and scoped logout command
+- Selectable system Chrome/Edge login with an optional fresh NotebookLM browser profile
+- Safe `notebooklm-install-skill` command with standard layout, atomic writes, and backups
+- Mixed URL, text, and local-file ingestion with bounded concurrency and per-source results
+- Exact artifact listing and ID-based downloads for 11 canonical artifact types
+- Full research lifecycle support: start, wait, terminal-state validation, and source import
+- Type-specific generation options, detached jobs, bounded RSS reads, and safe trend command execution
+
+### Changed
+
+- Updated dependency contract to `notebooklm-py>=0.7.3,<0.8` and FastMCP 2/3 compatibility
+- Rebuilt all five pipelines as real async workflows with truthful partial-failure states
+- Made CLI output consistently JSON-first with meaningful exit codes and explicit destructive flags
+- Restricted MCP HTTP mode to loopback and converted operational failures to MCP tool errors
+- Replaced the system-Python installer with a PEP 668-safe isolated environment
+- Rewrote bilingual docs and the packaged Skill against the executable command contract
+
+### Fixed
+
+- Current profile session discovery, `add_text` argument order, delete success reporting,
+  artifact listing, mind-map generation, research polling/import, and infographic downloads
+- Newly created notebook responses now report the successfully ingested source count
+- Shell injection risk in `make_video.sh`
+- Duplicate release-triggered PyPI publishing
+
+### Security
+
+- Downloads reject symlinks and existing files by default
+- Notebook deletion requires explicit confirmation on CLI and MCP surfaces
+- Local file and HTTP MCP trust boundaries are now documented
+
 ## [1.2.1] — 2026-03-17
 
 ### Added
@@ -93,6 +129,7 @@ Initial public release of notebooklm-skill.
 - `e75f8ea` docs: full zh-TW localization, doc fixes, video synthesis tool
 - `0f8edce` docs: add bilingual README and SETUP (EN + zh-TW)
 
+[1.3.0]: https://github.com/claude-world/notebooklm-skill/compare/v1.2.2...v1.3.0
 [1.2.1]: https://github.com/claude-world/notebooklm-skill/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/claude-world/notebooklm-skill/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/claude-world/notebooklm-skill/compare/v1.0.1...v1.1.0

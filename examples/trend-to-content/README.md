@@ -1,133 +1,73 @@
-# 範例：熱門話題 → 內容
+# 範例：趨勢到來源導向內容
 
-使用 trend-pulse 發現熱門話題，用 NotebookLM 深度研究，生成多平台內容。
-
-## 流程
-
-```
-trend-pulse 發現趨勢 → 選擇話題 → NotebookLM 研究 → 多平台內容
-```
+使用 `trend-pulse` 找到話題，再由 NotebookLM 搜尋、匯入研究來源並生成草稿。
 
 ## 前置需求
 
-- notebooklm-skill 已安裝並完成驗證（參考 [docs/SETUP.md](../../docs/SETUP.md)）
-- [trend-pulse](https://github.com/claude-world/trend-pulse) 執行中（MCP Server 或 CLI）
-
-## 步驟 1：發現熱門話題
-
-透過 trend-pulse 取得即時趨勢：
-
 ```bash
-# 如果 trend-pulse 作為 MCP 使用（在 Claude Code 中）
-# 直接問：「台灣今天有什麼熱門話題？」
-
-# 或在 Pipeline 中自動取得
-python scripts/pipeline.py trend-to-content \
-  --geo TW \
-  --count 3 \
-  --platform threads
+notebooklm-auth verify
+command -v trend-pulse
 ```
 
-trend-pulse 從 7 個來源取得趨勢：Google Trends、Hacker News、Reddit、Product Hunt 等。
-
-## 步驟 2：手動流程（逐步）
-
-如果想手動控制每一步：
+若執行檔不在 `PATH`：
 
 ```bash
-# 2a. 選一個話題，找相關網址，建立筆記本
-python scripts/notebooklm_client.py create \
-  --title "Claude Opus 4.6 1M Context" \
-  --sources \
-    "https://www.anthropic.com/news/claude-opus-4-6" \
-    "https://docs.anthropic.com/en/docs/about-claude/models"
-
-# 2b. 加入額外上下文（文字來源）
-python scripts/notebooklm_client.py add-source \
-  --notebook "Claude Opus 4.6 1M Context" \
-  --text "你自己的分析或額外背景資料..." \
-  --text-title "個人分析"
-
-# 2c. 深度研究
-python scripts/notebooklm_client.py ask \
-  --notebook "Claude Opus 4.6 1M Context" \
-  --query "這個更新對開發者的實際影響是什麼？"
-
-# 2d. 生成社群貼文草稿
-python scripts/notebooklm_client.py ask \
-  --notebook "Claude Opus 4.6 1M Context" \
-  --query "根據內容寫一則 Threads 貼文（繁中、500字內、口語化、不放網址）"
-
-# 2e. 生成產出物
-python scripts/notebooklm_client.py podcast \
-  --notebook "Claude Opus 4.6 1M Context" --lang zh-TW --output podcast.m4a
-
-python scripts/notebooklm_client.py generate \
-  --notebook "Claude Opus 4.6 1M Context" --type slides
-
-python scripts/notebooklm_client.py download \
-  --notebook "Claude Opus 4.6 1M Context" --type slides --output slides.pdf
+export TREND_PULSE_CMD=/absolute/path/to/trend-pulse
 ```
 
-## 步驟 3：自動化 Pipeline
-
-一行指令完成趨勢發現到內容生成：
+## 執行 Pipeline
 
 ```bash
-python scripts/pipeline.py trend-to-content \
+notebooklm-pipeline trend-to-content \
   --geo TW \
   --count 5 \
-  --platform threads
+  --platform threads \
+  --language zh-TW \
+  --research-mode deep \
+  --max-research-sources 10 \
+  > trends-result.json
 ```
 
-Pipeline 會自動：
-1. 從 trend-pulse 取得 5 個熱門話題
-2. 為每個話題建立 NotebookLM 筆記本
-3. 加入相關 URL 作為來源
-4. 執行研究查詢
-5. 生成平台專屬內容草稿
-6. 輸出結構化 JSON
+每個趨勢會各自建立筆記本。Pipeline 會先匯入 trend-pulse 提供的有效網址；
+沒有網址時加入描述文字，接著執行 NotebookLM web research、等待完成、匯入結果，
+最後才生成平台草稿。
 
-## 步驟 4：投影片 + Podcast → YouTube 影片
-
-將產出物合成為 YouTube 影片：
+## 檢查部分失敗
 
 ```bash
-# PDF 轉 PNG
-pdftoppm -png -r 300 slides.pdf slides/slide
-
-# 合成影片（投影片 + 音檔）
-ffmpeg -y \
-  -loop 1 -t <秒數> -i slides/slide-01.png \
-  -loop 1 -t <秒數> -i slides/slide-02.png \
-  ... \
-  -i podcast.m4a \
-  -filter_complex "...[v0];...[v1];...concat=n=N:v=1:a=0[outv]" \
-  -map "[outv]" -map N:a \
-  -c:v libx264 -c:a aac output.mp4
+jq '{status, processed: .trends_processed, failed: .trends_failed}' trends-result.json
+jq '.results[] | {topic, status, research_error, source_summary: .initial_source_summary}' \
+  trends-result.json
 ```
 
-## 每週摘要模式
+單一話題失敗不會抹掉其他結果，因此 top-level `partial` 是重要訊號。不要只看
+輸出檔是否存在。
 
-用多個熱門話題生成每週內容摘要：
+## 延伸產出物
+
+從選定結果取得 notebook ID：
 
 ```bash
-python scripts/pipeline.py trend-to-content \
-  --geo TW \
-  --count 5 \
-  --platform threads
+NOTEBOOK_ID=$(jq -r '.results[] | select(.status == "ok") | .notebook.id' \
+  trends-result.json | head -n 1)
+
+notebooklm-skill generate \
+  --notebook "$NOTEBOOK_ID" --type slides --lang zh-TW \
+  --output ./output/slides.pdf
+
+notebooklm-skill podcast \
+  --notebook "$NOTEBOOK_ID" --lang zh-TW \
+  --output ./output/podcast.m4a
+
+./scripts/make_video.sh \
+  ./output/slides.pdf ./output/podcast.m4a ./output/video.mp4
 ```
 
-這會為每個話題建立筆記本、研究並生成摘要式內容，適合每週電子報。
+`make_video.sh` 需要 `ffmpeg`、`ffprobe` 與 Poppler 的 `pdftoppm`。既有輸出不會
+被覆寫，除非明確傳入第四個參數 `--force`。
 
-## 技巧
+## 注意事項
 
-- **搶先研究**：熱門話題有 24-48 小時的高峰期。早研究、快發布。
-- **加入自己的來源**：搭配趨勢的 URL 加入你的獨特觀點。
-- **平台優先級**：視覺型話題走 Instagram，討論型走 Threads。
-- **批次規劃**：週一跑 5 個話題的 Pipeline，排程整週發布。
-
-## 下一步
-
-- [研究 → 文章](../research-to-article/) — 單一主題深度研究
-- [研究 → Threads](../research-to-threads/) — 社群觸及最佳化
+- 趨勢資料只是選題訊號；最終主張必須來自已匯入的研究來源。
+- 內容具有時效性，發布前重新確認日期、事件狀態與引用。
+- 本 Pipeline 只生成草稿，不會發佈到社群平台。

@@ -1,103 +1,66 @@
-# 範例：研究 → 文章
+# 範例：研究到文章
 
-從 3 個網址建立 NotebookLM 筆記本，提問 5 個研究問題，生成結構化文章草稿。
+從多種來源建立 NotebookLM 筆記本，保留引用資訊並產生文章草稿。
 
-## 流程
-
-```
-3 個來源 URL → NotebookLM 筆記本 → 5 個研究查詢 → 結構化 JSON → 文章草稿
-```
-
-## 前置需求
-
-- notebooklm-skill 已安裝並完成驗證（參考 [docs/SETUP.md](../../docs/SETUP.md)）
-
-## 步驟 1：建立筆記本並加入來源
-
-選擇 3 個涵蓋不同角度的網址。這個範例研究 AI 程式助手。
+## 前置檢查
 
 ```bash
-python scripts/notebooklm_client.py create \
-  --title "AI 程式助手 2026" \
+notebooklm-auth verify
+```
+
+## 一次完成
+
+```bash
+notebooklm-pipeline research-to-article \
   --sources \
-    "https://www.anthropic.com/news/claude-code" \
-    "https://github.blog/2024-06-05-github-copilot-research/" \
-    "https://cursor.com/blog/building-with-ai"
+    https://example.com/official-documentation \
+    https://example.com/independent-study \
+  --files ./local-paper.pdf \
+  --title "AI 程式助手證據回顧" \
+  --language zh-TW \
+  --audience "軟體工程師" \
+  --tone "精確、平衡、清楚區分證據與推論" \
+  > article-result.json
 ```
 
-## 步驟 2：提問研究問題
+Pipeline 會建立筆記本、逐筆回報來源匯入結果、並行詢問五個研究問題，再要求
+NotebookLM 根據來源撰寫文章。它不會把草稿發布到外部服務。
 
-提出 5 個有針對性的問題，為撰寫全面的文章收集素材。
+## 驗證結果
 
 ```bash
-python scripts/notebooklm_client.py ask \
-  --notebook "AI 程式助手 2026" \
-  --query "主要的 AI 程式助手有什麼關鍵差異？"
-
-python scripts/notebooklm_client.py ask \
-  --notebook "AI 程式助手 2026" \
-  --query "衡量 AI 程式助手效果的指標有哪些？"
-
-python scripts/notebooklm_client.py ask \
-  --notebook "AI 程式助手 2026" \
-  --query "開發者如何在工作流中使用 AI 程式工具？"
-
-python scripts/notebooklm_client.py ask \
-  --notebook "AI 程式助手 2026" \
-  --query "AI 程式助手的主要批評和限制是什麼？"
-
-python scripts/notebooklm_client.py ask \
-  --notebook "AI 程式助手 2026" \
-  --query "AI 輔助開發的新興趨勢有哪些？"
+jq '{status, source_summary, finding_states: [.research_findings[].status], article: .article.status}' \
+  article-result.json
+jq -r '.article.answer' article-result.json > article.md
 ```
 
-每個查詢都會回傳 JSON，包含 `answer`（答案）和 `references`（引用來源）。
+只有 `.status == "ok"`、每個來源/問題狀態可接受，且引用與原始來源相符時，
+才把草稿視為完成。`partial` 表示需要人工補來源或重跑失敗問題。
 
-## 步驟 3：使用 Pipeline 自動化
+## 手動補強
 
-如果不想逐步執行，可以用 Pipeline 一次完成：
+從 Pipeline 回傳的 `.notebook.id` 取得 ID：
 
 ```bash
-python scripts/pipeline.py research-to-article \
-  --sources \
-    "https://www.anthropic.com/news/claude-code" \
-    "https://github.blog/2024-06-05-github-copilot-research/" \
-    "https://cursor.com/blog/building-with-ai" \
-  --title "AI 程式助手 2026"
+NOTEBOOK_ID=$(jq -r '.notebook.id' article-result.json)
+
+notebooklm-skill add-source \
+  --notebook "$NOTEBOOK_ID" \
+  --url https://example.com/additional-evidence
+
+notebooklm-skill ask \
+  --notebook "$NOTEBOOK_ID" \
+  --query "哪些結論只有單一來源支持？請保留引用。"
+
+notebooklm-skill generate \
+  --notebook "$NOTEBOOK_ID" \
+  --type slides --lang zh-TW \
+  --output ./output/slides.pdf
 ```
 
-Pipeline 會自動：
-1. 建立筆記本並加入 3 個來源
-2. 提出 5 個預設研究問題
-3. 生成文章草稿
-4. 輸出結構化 JSON（含研究發現 + 文章草稿）
+## 注意事項
 
-## 步驟 4：生成產出物（選用）
-
-從研究內容生成投影片、Podcast 等：
-
-```bash
-# 生成投影片
-python scripts/notebooklm_client.py generate \
-  --notebook "AI 程式助手 2026" --type slides
-
-# 生成 Podcast（繁中）
-python scripts/notebooklm_client.py podcast \
-  --notebook "AI 程式助手 2026" --lang zh-TW --output podcast.m4a
-
-# 下載投影片
-python scripts/notebooklm_client.py download \
-  --notebook "AI 程式助手 2026" --type slides --output slides.pdf
-```
-
-## 技巧
-
-- **問對比性問題**：「優點是什麼？」+「批評是什麼？」能得到平衡的報導。
-- **問具體問題**：「有哪些衡量 X 的指標？」比「告訴我 X」產出更具體的素材。
-- **3-7 個來源最佳**：太少缺乏深度，太多則焦點分散。
-- **先檢視研究結果**：在生成內容前檢查 JSON 輸出，確保素材品質。
-
-## 下一步
-
-- [研究 → Threads](../research-to-threads/) — 將研究轉為社群貼文
-- [趨勢 → 內容](../trend-to-content/) — 從熱門話題開始，而非手動指定 URL
+- 自動化請使用 notebook ID，避免同名標題歧義。
+- 至少混合官方資料與獨立資料，不要把同一來源的重述當成多份證據。
+- JSON 中的 `references` 必須與文章主張一起保存。
+- 來源失敗不會被隱藏；先處理 `source_summary.failed` 再使用草稿。

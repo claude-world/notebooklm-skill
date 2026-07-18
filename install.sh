@@ -1,57 +1,85 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# notebooklm-skill installer
-# Installs the package, browser dependencies, and Claude Code Skill symlink.
+# Install notebooklm-skill into an isolated virtual environment. This avoids
+# mutating an externally managed Python installation (PEP 668) and works on
+# systems without pipx or uv.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILL_LINK="$HOME/.claude/skills/notebooklm-research.md"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_ROOT="${NOTEBOOKLM_INSTALL_ROOT:-${XDG_DATA_HOME:-$HOME/.local/share}/notebooklm-skill}"
+INSTALL_VENV="$INSTALL_ROOT/venv"
+COMMAND_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
+TASK_PYTHON="${NOTEBOOKLM_PYTHON:-$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)}"
 
-echo "=== notebooklm-skill installer ==="
-echo ""
+fail() {
+    printf 'Error: %s\n' "$1" >&2
+    exit 1
+}
 
-# Resolve Python interpreter — single interpreter for all steps
-PYTHON="${PYTHON:-$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)}"
-if [ -z "$PYTHON" ] || ! "$PYTHON" --version >/dev/null 2>&1; then
-    echo "Error: python3 not found. Install Python 3.10+ or set PYTHON env var." >&2; exit 1
+if [ -z "$TASK_PYTHON" ] || ! "$TASK_PYTHON" --version >/dev/null 2>&1; then
+    fail "Python 3.10+ was not found. Install Python or set NOTEBOOKLM_PYTHON."
 fi
 
-# 1. Install Python package in editable mode
-echo "[1/4] Installing Python package..."
-"$PYTHON" -m pip install -e "$SCRIPT_DIR"
-echo "  -> notebooklm-skill, notebooklm-pipeline, notebooklm-mcp commands installed"
-echo ""
-
-# 2. Install Playwright Chromium (needed for first-time auth)
-echo "[2/4] Installing Playwright Chromium..."
-"$PYTHON" -m playwright install chromium
-echo ""
-
-# 3. Symlink Claude Code Skill
-echo "[3/4] Installing Claude Code Skill..."
-mkdir -p "$(dirname "$SKILL_LINK")"
-if [ -L "$SKILL_LINK" ] || [ -f "$SKILL_LINK" ]; then
-    echo "  -> Symlink already exists, updating..."
-    rm "$SKILL_LINK"
+if ! "$TASK_PYTHON" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))'; then
+    fail "Python 3.10+ is required."
 fi
-ln -s "$SCRIPT_DIR/SKILL.md" "$SKILL_LINK"
-echo "  -> $SKILL_LINK -> $SCRIPT_DIR/SKILL.md"
-echo ""
 
-# 4. Check authentication
-echo "[4/4] Checking authentication..."
-if [ -f "$HOME/.notebooklm/storage_state.json" ]; then
-    echo "  -> Session file found: ~/.notebooklm/storage_state.json"
-    echo "  -> Run 'notebooklm-skill list' to confirm it's still valid"
+printf '%s\n' '=== notebooklm-skill installer ==='
+printf '[1/5] Creating isolated environment at %s\n' "$INSTALL_VENV"
+mkdir -p "$INSTALL_ROOT"
+if [ ! -x "$INSTALL_VENV/bin/python" ]; then
+    "$TASK_PYTHON" -m venv "$INSTALL_VENV"
+fi
+
+printf '%s\n' '[2/5] Installing notebooklm-skill and dependencies...'
+"$INSTALL_VENV/bin/python" -m pip install --upgrade pip
+if [ "${NOTEBOOKLM_INSTALL_EDITABLE:-0}" = "1" ]; then
+    "$INSTALL_VENV/bin/python" -m pip install --editable "$PROJECT_DIR"
 else
-    echo "  -> No session found. Run: python3 -m notebooklm login"
+    "$INSTALL_VENV/bin/python" -m pip install --upgrade "$PROJECT_DIR"
 fi
-echo ""
 
-echo "=== Installation complete ==="
-echo ""
-echo "Quick start:"
-echo "  notebooklm-skill --help        # CLI help"
-echo "  notebooklm-pipeline --help     # Pipeline help"
-echo "  notebooklm-mcp --help          # MCP server help"
-echo "  python3 -m notebooklm login    # First-time auth (if needed)"
+printf '%s\n' '[3/5] Installing Playwright Chromium for browser login...'
+if [ "${NOTEBOOKLM_SKIP_BROWSER:-0}" = "1" ]; then
+    printf '%s\n' '  skipped (NOTEBOOKLM_SKIP_BROWSER=1)'
+else
+    "$INSTALL_VENV/bin/python" -m playwright install chromium
+fi
+
+printf '[4/5] Linking commands into %s\n' "$COMMAND_DIR"
+mkdir -p "$COMMAND_DIR"
+for command_name in notebooklm-skill notebooklm-pipeline notebooklm-mcp notebooklm-auth notebooklm-install-skill; do
+    command_source="$INSTALL_VENV/bin/$command_name"
+    command_target="$COMMAND_DIR/$command_name"
+    [ -x "$command_source" ] || fail "Expected command is missing: $command_source"
+    if [ -e "$command_target" ] || [ -L "$command_target" ]; then
+        if [ -L "$command_target" ] && [ "$(readlink "$command_target")" = "$command_source" ]; then
+            continue
+        fi
+        printf '  warning: leaving existing command untouched: %s\n' "$command_target" >&2
+        continue
+    fi
+    ln -s "$command_source" "$command_target"
+done
+
+printf '%s\n' '[5/5] Installing the Claude Code Skill and checking authentication...'
+if [ "${NOTEBOOKLM_SKIP_SKILL:-0}" = "1" ]; then
+    printf '%s\n' '  Skill install skipped (NOTEBOOKLM_SKIP_SKILL=1)'
+else
+    "$INSTALL_VENV/bin/notebooklm-install-skill" --force
+fi
+if [ "${NOTEBOOKLM_SKIP_AUTH_CHECK:-0}" = "1" ]; then
+    printf '%s\n' '  Authentication check skipped (NOTEBOOKLM_SKIP_AUTH_CHECK=1)'
+elif "$INSTALL_VENV/bin/notebooklm-auth" verify; then
+    printf '%s\n' '  Authentication is valid.'
+else
+    printf '%s\n' '  Authentication is not ready. Run: notebooklm-auth setup' >&2
+fi
+
+printf '\n%s\n' '=== Installation complete ==='
+printf 'Ensure %s is on PATH, then try:\n' "$COMMAND_DIR"
+printf '%s\n' \
+    '  notebooklm-auth setup' \
+    '  notebooklm-skill list' \
+    '  notebooklm-pipeline --help' \
+    '  notebooklm-mcp --help'

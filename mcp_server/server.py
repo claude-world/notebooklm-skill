@@ -1,79 +1,26 @@
 #!/usr/bin/env python3
-"""NotebookLM MCP Server.
+"""FastMCP server for the notebooklm-skill operations."""
 
-A FastMCP server that exposes 13 NotebookLM tools, usable by Claude Code,
-Cursor, Gemini CLI, and any other MCP-compatible client.
-
-Uses notebooklm-py v0.3.4 async API directly — no subprocess calls.
-
-Usage:
-    # stdio mode (default — for Claude Code / Cursor)
-    notebooklm-mcp                    # after pip install .
-    python3 mcp_server/server.py      # direct invocation
-
-    # HTTP mode (for remote / multi-client access)
-    notebooklm-mcp --http
-    notebooklm-mcp --http --port 8765
-
-MCP client configuration examples:
-
-    # Claude Code — add to .mcp.json
-    {
-      "mcpServers": {
-        "notebooklm": {
-          "command": "python3",
-          "args": ["/path/to/mcp_server/server.py"]
-        }
-      }
-    }
-
-    # Cursor — add to .cursor/mcp.json
-    {
-      "mcpServers": {
-        "notebooklm": {
-          "command": "python3",
-          "args": ["/path/to/mcp_server/server.py"]
-        }
-      }
-    }
-
-    # Gemini CLI — add to ~/.gemini/settings.json
-    {
-      "mcpServers": {
-        "notebooklm": {
-          "command": "python3",
-          "args": ["/path/to/mcp_server/server.py"]
-        }
-      }
-    }
-
-    # HTTP mode (any client that supports SSE/streamable HTTP)
-    {
-      "mcpServers": {
-        "notebooklm": {
-          "url": "http://localhost:8765/mcp"
-        }
-      }
-    }
-"""
+from __future__ import annotations
 
 import argparse
-import sys
-from pathlib import Path
-
-# Allow direct invocation: python3 mcp_server/server.py (without pip install).
-# Has no effect when called via pip-installed `notebooklm-mcp` entry point.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import os
+from collections.abc import Awaitable
+from importlib.metadata import PackageNotFoundError, version
+from typing import Any, Literal
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
 from mcp_server.tools import (
+    SUPPORTED_ARTIFACT_TYPES,
     add_source,
     ask,
     create_notebook,
     delete_notebook,
     download_artifact,
     generate_artifact,
+    list_artifacts,
     list_notebooks,
     list_sources,
     research,
@@ -82,30 +29,44 @@ from mcp_server.tools import (
     trend_research,
 )
 
-# ---------------------------------------------------------------------------
-# Server instance
-# ---------------------------------------------------------------------------
-
 mcp = FastMCP(
     "notebooklm",
     instructions=(
-        "NotebookLM research engine — create notebooks, ask questions, "
-        "generate and download 9 artifact types (audio, video, slides, "
-        "report, study-guide, quiz, flashcards, mind-map, "
-        "data-table), and run full research-to-content pipelines. "
-        "Note: infographic is NOT supported (download unreliable, use slides instead).\n\n"
-        "AUTHENTICATION: Requires a one-time Google login before first use. "
-        "If any tool returns an [AUTH_REQUIRED] error, ask the user to run "
-        "`uvx notebooklm login` in their terminal. This opens a browser for "
-        "Google sign-in and saves the session to ~/.notebooklm/. "
-        "After login, retry the request — no restart needed."
+        "NotebookLM research automation with profile-aware authentication, mixed-source "
+        "ingestion, source-grounded chat, complete research lifecycle management, and "
+        f"artifact generation/download ({', '.join(SUPPORTED_ARTIFACT_TYPES)}). "
+        "If authentication is required, tell the user to run "
+        "`uvx --from notebooklm-py notebooklm login`, then retry. "
+        "Notebook deletion requires confirm=true. Downloads refuse to overwrite existing "
+        "files unless force=true."
     ),
 )
 
 
-# ---------------------------------------------------------------------------
-# Core Tools (7)
-# ---------------------------------------------------------------------------
+def _package_version() -> str:
+    try:
+        return version("notebooklm-skill")
+    except PackageNotFoundError:
+        return "development"
+
+
+async def registered_tools() -> list[Any]:
+    """Return registered tools across the supported FastMCP 2.x/3.x APIs."""
+    list_tools = getattr(mcp, "list_tools", None)
+    if list_tools is not None:
+        return list(await list_tools())
+    legacy_server: Any = mcp
+    return list((await legacy_server.get_tools()).values())
+
+
+async def _invoke(operation: Awaitable[dict[str, Any]]) -> dict[str, Any]:
+    """Turn implementation exceptions into real MCP tool errors."""
+    try:
+        return await operation
+    except ToolError:
+        raise
+    except Exception as exc:
+        raise ToolError(str(exc)) from exc
 
 
 @mcp.tool()
@@ -113,63 +74,31 @@ async def nlm_create_notebook(
     title: str,
     sources: list[str] | None = None,
     text_sources: list[str] | None = None,
-) -> dict:
-    """Create a NotebookLM notebook, optionally with URL and text sources.
+    file_sources: list[str] | None = None,
+) -> dict[str, Any]:
+    """Create a notebook with optional URL, raw-text, and local-file sources.
 
-    Args:
-        title: Human-readable notebook title.
-        sources: Optional list of URLs to ingest (web pages, PDFs, YouTube).
-        text_sources: Optional list of raw text strings to add as sources.
-
-    Returns:
-        Notebook metadata including notebook id and sources added.
-
-    Example:
-        nlm_create_notebook(
-            title="AI Safety Research",
-            sources=["https://arxiv.org/abs/2401.00001"],
-            text_sources=["Additional context about AI alignment..."]
-        )
+    Returns per-source outcomes and truthful requested/succeeded/failed counts.
     """
-    try:
-        return await create_notebook(title, sources, text_sources)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+    return await _invoke(create_notebook(title, sources, text_sources, file_sources))
 
 
 @mcp.tool()
-async def nlm_list() -> dict:
-    """List all notebooks in the NotebookLM account.
-
-    Returns:
-        Dict with notebooks list, each containing id and title.
-
-    Example:
-        nlm_list()
-    """
-    try:
-        return await list_notebooks()
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+async def nlm_list() -> dict[str, Any]:
+    """List NotebookLM notebooks with IDs, titles, and source counts."""
+    return await _invoke(list_notebooks())
 
 
 @mcp.tool()
-async def nlm_delete(notebook: str) -> dict:
-    """Delete a notebook and all its sources. Irreversible.
-
-    Args:
-        notebook: Notebook ID or title to delete.
-
-    Returns:
-        Deletion status and deleted notebook ID.
-
-    Example:
-        nlm_delete(notebook="Old Research")
-    """
-    try:
-        return await delete_notebook(notebook)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+async def nlm_delete(notebook: str, confirm: bool = False) -> dict[str, Any]:
+    """Permanently delete a notebook only when ``confirm`` is true."""
+    if not confirm:
+        return {
+            "status": "requires_confirmation",
+            "message": "Notebook deletion is irreversible. Call again with confirm=true.",
+            "notebook": notebook,
+        }
+    return await _invoke(delete_notebook(notebook))
 
 
 @mcp.tool()
@@ -179,94 +108,27 @@ async def nlm_add_source(
     text: str | None = None,
     text_title: str | None = None,
     file_path: str | None = None,
-) -> dict:
-    """Add a source to an existing notebook.
-
-    Provide exactly one of: url, text, or file_path.
-
-    Args:
-        notebook: Notebook ID or title.
-        url: URL to add (web page, PDF, YouTube, etc.).
-        text: Raw text content to add as a source.
-        text_title: Title for the text source (default "Text Source").
-        file_path: Local file path to upload (PDF, TXT, etc.).
-
-    Returns:
-        Source metadata including source id and type.
-
-    Example:
-        nlm_add_source(notebook="My Research", url="https://example.com/paper.pdf")
-        nlm_add_source(notebook="My Research", text="Key finding: ...", text_title="Notes")
-    """
-    try:
-        return await add_source(notebook, url=url, text=text, text_title=text_title, file_path=file_path)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+) -> dict[str, Any]:
+    """Add exactly one URL, text, or local file source to a notebook."""
+    return await _invoke(add_source(notebook, url=url, text=text, text_title=text_title, file_path=file_path))
 
 
 @mcp.tool()
-async def nlm_ask(notebook: str, query: str) -> dict:
-    """Ask a question against a notebook's ingested sources.
-
-    The answer is grounded in the notebook's content and includes citations.
-
-    Args:
-        notebook: Notebook ID or title to query.
-        query: Natural-language question.
-
-    Returns:
-        Answer text with citations pointing to source passages.
-
-    Example:
-        nlm_ask(notebook="AI Safety Research", query="What are the main risks?")
-    """
-    try:
-        return await ask(notebook, query)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+async def nlm_ask(notebook: str, query: str) -> dict[str, Any]:
+    """Ask a source-grounded question and return answer citations."""
+    return await _invoke(ask(notebook, query))
 
 
 @mcp.tool()
-async def nlm_summarize(notebook: str) -> dict:
-    """Generate a summary of a notebook's content.
-
-    Args:
-        notebook: Notebook ID or title.
-
-    Returns:
-        Summary text extracted from all ingested sources.
-
-    Example:
-        nlm_summarize(notebook="AI Safety Research")
-    """
-    try:
-        return await summarize(notebook)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+async def nlm_summarize(notebook: str) -> dict[str, Any]:
+    """Return the NotebookLM-generated summary for a notebook."""
+    return await _invoke(summarize(notebook))
 
 
 @mcp.tool()
-async def nlm_list_sources(notebook: str) -> dict:
-    """List all sources in a notebook.
-
-    Args:
-        notebook: Notebook ID or title.
-
-    Returns:
-        List of sources with id, title, type, and status.
-
-    Example:
-        nlm_list_sources(notebook="AI Safety Research")
-    """
-    try:
-        return await list_sources(notebook)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
-
-
-# ---------------------------------------------------------------------------
-# Artifact Tools (3)
-# ---------------------------------------------------------------------------
+async def nlm_list_sources(notebook: str) -> dict[str, Any]:
+    """List ingested sources with current kind and processing status."""
+    return await _invoke(list_sources(notebook))
 
 
 @mcp.tool()
@@ -275,35 +137,32 @@ async def nlm_generate(
     type: str,
     lang: str = "en",
     instructions: str | None = None,
-) -> dict:
-    """Generate an artifact from a notebook.
+    source_ids: list[str] | None = None,
+    options: dict[str, str] | None = None,
+    wait: bool = True,
+    timeout: float | None = None,
+) -> dict[str, Any]:
+    """Generate an artifact, optionally waiting for completion.
 
-    Supports 9 artifact types (infographic excluded — download unreliable).
-
-    Args:
-        notebook: Notebook ID or title.
-        type: Artifact type — one of: audio, video, slides, report, quiz,
-              flashcards, mind-map, data-table, study-guide.
-              ⚠️ infographic is NOT supported (download unreliable). Use 'slides' instead.
-        lang: Language code (default "en"). Used for audio, video, slides,
-              report, data-table, study-guide.
-        instructions: Optional generation instructions. Passed as
-                      "instructions" for audio/video/slides/quiz/flashcards/
-                      data-table, or as "extra_instructions" for
-                      report/study-guide. Not used for mind-map.
-
-    Returns:
-        Generation status with task_id and completion details.
-
-    Example:
-        nlm_generate(notebook="AI Safety", type="audio", lang="en")
-        nlm_generate(notebook="AI Safety", type="report", instructions="Add executive summary")
-        nlm_generate(notebook="AI Safety", type="quiz", instructions="Focus on chapter 3")
+    ``type`` supports audio, video, cinematic, slides, report, study-guide,
+    quiz, flashcards, mind-map, infographic, and data-table. ``options`` may
+    contain type-specific keys such as audio_format, audio_length,
+    video_format, video_style, slide_format, slide_length, report_format,
+    custom_prompt, quantity, difficulty, orientation, detail_level, or style.
+    Set wait=false to return the task ID immediately for long media jobs.
     """
-    try:
-        return await generate_artifact(notebook, type, lang=lang, instructions=instructions)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+    return await _invoke(
+        generate_artifact(
+            notebook,
+            type,
+            lang=lang,
+            instructions=instructions,
+            source_ids=source_ids,
+            options=options,
+            wait=wait,
+            timeout=timeout,
+        )
+    )
 
 
 @mcp.tool()
@@ -312,206 +171,115 @@ async def nlm_download(
     type: str,
     output_path: str,
     output_format: str | None = None,
-) -> dict:
-    """Download a generated artifact to a local file.
+    artifact_id: str | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Download an exact artifact ID (or latest) to a local path.
 
-    Supports 9 artifact types (infographic excluded — download unreliable):
-      - audio → .m4a
-      - video → .mp4
-      - slides → PDF (default) or PPTX (output_format="pptx")
-      - report → Markdown
-      - study-guide → Markdown
-      - quiz → JSON (default), Markdown ("markdown"), or HTML ("html")
-      - flashcards → JSON (default), Markdown ("markdown"), or HTML ("html")
-      - mind-map → JSON
-      - data-table → CSV
-      ⚠️ infographic is NOT downloadable. Use 'slides' for visual content.
-
-    Args:
-        notebook: Notebook ID or title.
-        type: Artifact type — audio, video, slides, report, study-guide,
-              quiz, flashcards, mind-map, or data-table.
-        output_path: Local file path to save the artifact.
-        output_format: Optional output format for types that support it.
-                       slides: "pdf" (default) or "pptx".
-                       quiz/flashcards: "json" (default), "markdown", or "html".
-
-    Returns:
-        Download status and output file path.
-
-    Example:
-        nlm_download(notebook="AI Safety", type="audio", output_path="podcast.m4a")
-        nlm_download(notebook="AI Safety", type="slides", output_path="deck.pptx", output_format="pptx")
-        nlm_download(notebook="AI Safety", type="quiz", output_path="quiz.md", output_format="markdown")
+    Existing files and symlinks are rejected unless the safe overwrite rules
+    permit the path. Formats: slides=pdf/pptx; quiz/flashcards=json/markdown/html.
     """
-    try:
-        return await download_artifact(notebook, type, output_path, output_format=output_format)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+    return await _invoke(
+        download_artifact(
+            notebook,
+            type,
+            output_path,
+            output_format=output_format,
+            artifact_id=artifact_id,
+            force=force,
+        )
+    )
 
 
 @mcp.tool()
 async def nlm_list_artifacts(
     notebook: str,
     type: str | None = None,
-) -> dict:
-    """List sources/artifacts in a notebook.
-
-    Optionally filter by type.
-
-    Args:
-        notebook: Notebook ID or title.
-        type: Optional filter — not yet supported by upstream API,
-              returns all sources for now.
-
-    Returns:
-        List of sources in the notebook.
-
-    Example:
-        nlm_list_artifacts(notebook="AI Safety")
-    """
-    try:
-        result = await list_sources(notebook)
-        # Future: filter by type when upstream API supports it
-        return result
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
-
-
-# ---------------------------------------------------------------------------
-# Research Tool (1)
-# ---------------------------------------------------------------------------
+) -> dict[str, Any]:
+    """List actual generated artifacts, optionally filtered by canonical type."""
+    return await _invoke(list_artifacts(notebook, type))
 
 
 @mcp.tool()
 async def nlm_research(
     notebook: str,
     query: str,
-    mode: str = "fast",
-) -> dict:
-    """Run a web research query within a notebook.
-
-    Uses NotebookLM's built-in research capability to find and ingest
-    web sources relevant to the query.
-
-    Args:
-        notebook: Notebook ID or title.
-        query: Research topic or question.
-        mode: Research mode — "fast" or "deep" (default "fast").
-
-    Returns:
-        Research results and status.
-
-    Example:
-        nlm_research(notebook="AI Safety", query="latest alignment techniques", mode="fast")
-    """
-    try:
-        return await research(notebook, query, mode=mode)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
-
-
-# ---------------------------------------------------------------------------
-# Pipeline Tools (2)
-# ---------------------------------------------------------------------------
+    mode: Literal["fast", "deep"] = "fast",
+    wait: bool = True,
+    import_results: bool = True,
+    max_sources: int = 10,
+    timeout: float = 1800,
+) -> dict[str, Any]:
+    """Run pinned web research, wait for a terminal state, and import findings."""
+    return await _invoke(
+        research(
+            notebook,
+            query,
+            mode=mode,
+            wait=wait,
+            import_results=import_results,
+            max_sources=max_sources,
+            timeout=timeout,
+        )
+    )
 
 
 @mcp.tool()
 async def nlm_research_pipeline(
     sources: list[str],
     questions: list[str],
-    output_format: str = "article",
-) -> dict:
-    """Full research-to-content pipeline.
-
-    End-to-end workflow: creates a notebook from source URLs, asks all
-    research questions, and assembles answers into formatted content.
-
-    Args:
-        sources: URLs to ingest as research sources.
-        questions: Research questions to investigate.
-        output_format: Output format — "article", "thread", or "report"
-                       (default "article").
-
-    Returns:
-        Notebook ID, individual answers, and assembled content.
-
-    Example:
-        nlm_research_pipeline(
-            sources=["https://example.com/paper1", "https://example.com/paper2"],
-            questions=["What is the main finding?", "What methodology was used?"],
-            output_format="article"
-        )
-    """
-    try:
-        return await research_pipeline(sources, questions, output_format)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+    output_format: Literal["article", "thread", "report"] = "article",
+    title: str | None = None,
+) -> dict[str, Any]:
+    """Create a notebook, ingest URLs, ask questions, and assemble content."""
+    return await _invoke(research_pipeline(sources, questions, output_format, title))
 
 
 @mcp.tool()
 async def nlm_trend_research(
     geo: str = "TW",
     count: int = 5,
-    platform: str = "threads",
-) -> dict:
-    """Trending topics to researched content pipeline.
-
-    Fetches current trending topics (via trend-pulse), then for each topic:
-    creates a notebook, researches it, and generates platform-ready content.
-
-    Args:
-        geo: Geographic region code (default "TW"). Examples: "US", "JP".
-        count: Number of trending topics to process (default 5).
-        platform: Target content platform — "threads", "instagram", or
-                  "article" (default "threads").
-
-    Returns:
-        Trends processed with generated content for each.
-
-    Example:
-        nlm_trend_research(geo="TW", count=3, platform="threads")
-    """
-    try:
-        return await trend_research(geo, count, platform)
-    except Exception as exc:
-        return {"error": str(exc), "status": "failed"}
+    platform: Literal["threads", "twitter", "instagram", "article"] = "threads",
+) -> dict[str, Any]:
+    """Fetch trend-pulse topics, research/import each, and create grounded drafts."""
+    return await _invoke(trend_research(geo, count, platform))
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
+def build_parser() -> argparse.ArgumentParser:
+    """Build the MCP server CLI parser."""
+    parser = argparse.ArgumentParser(description="NotebookLM MCP Server")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {_package_version()}")
+    parser.add_argument("--http", action="store_true", help="Use Streamable HTTP")
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="HTTP bind host (loopback only; default: 127.0.0.1)",
+    )
+    parser.add_argument("--port", type=int, default=8765, help="HTTP port (default: 8765)")
+    parser.add_argument("--profile", help="NotebookLM auth profile (or NOTEBOOKLM_PROFILE)")
+    return parser
 
 
 def main() -> None:
-    """Parse arguments and start the MCP server."""
-    parser = argparse.ArgumentParser(
-        description="NotebookLM MCP Server",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=(
-            "Examples:\n"
-            "  notebooklm-mcp                # stdio mode (Claude Code, Cursor)\n"
-            "  notebooklm-mcp --http         # HTTP mode on port 8765\n"
-            "  notebooklm-mcp --http --port 9000\n"
-        ),
-    )
-    parser.add_argument(
-        "--http",
-        action="store_true",
-        help="Run in HTTP mode instead of stdio (default port 8765)",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8765,
-        help="Port for HTTP mode (default: 8765)",
-    )
+    """Start stdio or loopback-only HTTP transport."""
+    parser = build_parser()
     args = parser.parse_args()
-
-    if args.http:
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=args.port)
-    else:
-        mcp.run(transport="stdio")
+    if args.profile:
+        os.environ["NOTEBOOKLM_PROFILE"] = args.profile
+    if not 1 <= args.port <= 65535:
+        parser.error("--port must be between 1 and 65535")
+    try:
+        if args.http:
+            if args.host not in {"127.0.0.1", "localhost", "::1"}:
+                parser.error(
+                    "Remote HTTP binding is disabled because this server exposes account and local "
+                    "file operations. Use loopback behind an authenticated TLS reverse proxy."
+                )
+            mcp.run(transport="http", host=args.host, port=args.port)
+        else:
+            mcp.run(transport="stdio")
+    except KeyboardInterrupt:
+        return
 
 
 if __name__ == "__main__":
