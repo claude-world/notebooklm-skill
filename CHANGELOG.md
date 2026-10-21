@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `generate-all` checks every download destination before creating a notebook, so a
   leftover file in `--output-dir` no longer fails downloads after all generations ran
 - MCP `nlm_generate` validates the artifact type and options before opening a session
+- The MCP server reports the notebooklm-skill version in `serverInfo` and its startup banner
+  instead of the FastMCP version
 - `ruff format --check` failing on the Python example in `references/api_surface.md` under
   Ruff 0.17, which now formats Markdown code blocks
 - Stale `notebooklm-py` 0.7.x references and an inaccurate project layout in the docs

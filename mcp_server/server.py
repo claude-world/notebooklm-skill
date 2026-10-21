@@ -29,6 +29,14 @@ from mcp_server.tools import (
     trend_research,
 )
 
+
+def _package_version() -> str:
+    try:
+        return version("notebooklm-skill")
+    except PackageNotFoundError:
+        return "development"
+
+
 mcp = FastMCP(
     "notebooklm",
     instructions=(
@@ -40,14 +48,9 @@ mcp = FastMCP(
         "Notebook deletion requires confirm=true. Downloads refuse to overwrite existing "
         "files unless force=true."
     ),
+    # Report this package's version in MCP serverInfo, not FastMCP's.
+    version=_package_version(),
 )
-
-
-def _package_version() -> str:
-    try:
-        return version("notebooklm-skill")
-    except PackageNotFoundError:
-        return "development"
 
 
 async def registered_tools() -> list[Any]:

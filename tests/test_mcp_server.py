@@ -80,6 +80,8 @@ async def test_tool_parameter_contract():
 async def test_mcp_client_round_trip_and_tool_errors(monkeypatch):
     monkeypatch.setattr(server, "list_notebooks", AsyncMock(return_value={"status": "ok", "notebooks": [], "count": 0}))
     async with Client(server.mcp) as client:
+        assert client.server_info.name == "notebooklm"
+        assert client.server_info.version == server._package_version()
         assert len(await client.list_tools()) == 13
         listed = await client.call_tool("nlm_list", {})
         assert listed.structured_content == {"status": "ok", "notebooks": [], "count": 0}
