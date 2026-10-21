@@ -16,6 +16,7 @@ from scripts.common import (
     ARTIFACT_SPECS,
     AuthenticationRequired,
     UsageError,
+    build_generation_kwargs,
     download_artifact,
     generate_artifact,
     get_client,
@@ -27,6 +28,7 @@ from scripts.common import (
     serialize_notebook,
     serialize_source,
     source_result_summary,
+    validate_download,
     validate_url,
 )
 
@@ -231,6 +233,17 @@ async def cmd_generate(args: argparse.Namespace) -> dict[str, Any]:
     """Generate an artifact, with optional precise auto-download."""
     if args.output and not args.wait:
         raise UsageError("--output requires waiting; remove --no-wait.")
+    # Reject bad options and download targets before a session opens or a
+    # generation job that can run for many minutes starts.
+    build_generation_kwargs(
+        args.type,
+        language=args.lang,
+        instructions=args.instructions,
+        source_ids=args.source_ids,
+        options=_generation_options(args),
+    )
+    if args.output:
+        validate_download(args.type, args.output, output_format=args.output_format, force=args.force)
     async with get_client() as client:
         notebook = await resolve_notebook(client, args.notebook)
         _err(f"Generating {args.type}...")

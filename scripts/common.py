@@ -573,8 +573,8 @@ async def generate_artifact(
     return result
 
 
-def prepare_output_path(output_path: str | Path, *, force: bool = False) -> Path:
-    """Validate a download path and create its parent directory."""
+def check_output_path(output_path: str | Path, *, force: bool = False) -> Path:
+    """Validate a download path without touching the filesystem."""
     path = Path(output_path).expanduser()
     if path.is_symlink():
         raise UsageError(f"Refusing to write through a symlink: {path}")
@@ -582,8 +582,32 @@ def prepare_output_path(output_path: str | Path, *, force: bool = False) -> Path
         raise UsageError(f"Output path is a directory: {path}")
     if path.exists() and not force:
         raise UsageError(f"Output already exists: {path}. Pass --force to overwrite it.")
+    return path
+
+
+def prepare_output_path(output_path: str | Path, *, force: bool = False) -> Path:
+    """Validate a download path and create its parent directory."""
+    path = check_output_path(output_path, force=force)
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def validate_download(
+    artifact_type: str,
+    output_path: str | Path,
+    *,
+    output_format: str | None = None,
+    force: bool = False,
+) -> ArtifactSpec:
+    """Validate a download request, so callers can fail before long generations."""
+    spec = ARTIFACT_SPECS.get(artifact_type)
+    if spec is None:
+        raise UsageError(f"Unknown artifact type '{artifact_type}'.")
+    if output_format and output_format not in spec.output_formats:
+        choices = ", ".join(spec.output_formats) or "none"
+        raise UsageError(f"Output format '{output_format}' is not valid for {artifact_type}. Choices: {choices}")
+    check_output_path(output_path, force=force)
+    return spec
 
 
 async def download_artifact(
@@ -597,12 +621,7 @@ async def download_artifact(
     force: bool = False,
 ) -> str:
     """Download one artifact with type/format/path validation."""
-    spec = ARTIFACT_SPECS.get(artifact_type)
-    if spec is None:
-        raise UsageError(f"Unknown artifact type '{artifact_type}'.")
-    if output_format and output_format not in spec.output_formats:
-        choices = ", ".join(spec.output_formats) or "none"
-        raise UsageError(f"Output format '{output_format}' is not valid for {artifact_type}. Choices: {choices}")
+    spec = validate_download(artifact_type, output_path, output_format=output_format, force=force)
     path = prepare_output_path(output_path, force=force)
     method = getattr(client.artifacts, spec.downloader)
     kwargs: dict[str, Any] = {}

@@ -331,6 +331,22 @@ def test_prepare_output_path(tmp_path):
         common.prepare_output_path(symlink, force=True)
 
 
+def test_validate_download_checks_without_writing(tmp_path):
+    target = tmp_path / "missing-parent" / "deck.pptx"
+    assert common.validate_download("slides", target, output_format="pptx").extension == "pdf"
+    assert not target.parent.exists()
+    assert common.check_output_path(target) == target
+    with pytest.raises(UsageError, match="Unknown"):
+        common.validate_download("bad", target)
+    with pytest.raises(UsageError, match="not valid"):
+        common.validate_download("audio", target, output_format="mp3")
+    existing = tmp_path / "audio.m4a"
+    existing.write_bytes(b"old")
+    with pytest.raises(UsageError, match="exists"):
+        common.validate_download("audio", existing)
+    assert common.validate_download("audio", existing, force=True).downloader == "download_audio"
+
+
 @pytest.mark.asyncio
 async def test_download_and_list_artifacts(client, tmp_path):
     path = await common.download_artifact(

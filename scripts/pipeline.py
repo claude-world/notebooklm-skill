@@ -28,6 +28,7 @@ from scripts.common import (
     serialize_generation_status,
     serialize_notebook,
     source_result_summary,
+    validate_download,
     validate_url,
 )
 
@@ -413,6 +414,10 @@ async def workflow_generate_all(args: argparse.Namespace) -> dict[str, Any]:
     if output_dir.is_symlink():
         raise UsageError(f"Refusing to use a symlink output directory: {output_dir}")
     if args.download:
+        # Fail before creating a notebook rather than after long generations.
+        for artifact_type in types:
+            extension = ARTIFACT_SPECS[artifact_type].extension
+            validate_download(artifact_type, output_dir / f"{artifact_type}.{extension}", force=args.force)
         output_dir.mkdir(parents=True, exist_ok=True)
 
     async with get_client() as client:

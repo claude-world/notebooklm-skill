@@ -219,6 +219,25 @@ async def test_generate_all_wait_download_detached_and_errors(monkeypatch, clien
 
 
 @pytest.mark.asyncio
+async def test_generate_all_rejects_existing_outputs_before_creating_notebook(monkeypatch, client, tmp_path):
+    use_client(monkeypatch, client)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    (output_dir / "slides.pdf").write_bytes(b"old")
+    argv = ["generate-all", "--text-sources", "notes", "--types", "slides", "--output-dir", str(output_dir)]
+    with pytest.raises(UsageError, match="exists"):
+        await pipeline.workflow_generate_all(pipeline.build_parser().parse_args(argv))
+    client.notebooks.create.assert_not_awaited()
+
+    forced = await pipeline.workflow_generate_all(pipeline.build_parser().parse_args([*argv, "--force"]))
+    assert forced["status"] == "ok"
+    detached = await pipeline.workflow_generate_all(
+        pipeline.build_parser().parse_args([*argv, "--no-wait", "--no-download"])
+    )
+    assert detached["status"] == "started"
+
+
+@pytest.mark.asyncio
 async def test_dispatch(monkeypatch):
     operation = AsyncMock(return_value={"status": "ok"})
     monkeypatch.setitem(pipeline.WORKFLOWS, "batch-digest", operation)

@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `generate --output`, `podcast --output`, and `qa --output` now reject an existing output
+  file, an invalid `--output-format`, or invalid generation options before opening a session
+  or starting a generation job; previously these errors appeared only after the job finished,
+  and an unauthenticated run reported `AUTH_REQUIRED` instead of the invalid argument
+- `generate-all` checks every download destination before creating a notebook, so a
+  leftover file in `--output-dir` no longer fails downloads after all generations ran
+- MCP `nlm_generate` validates the artifact type and options before opening a session
 - `ruff format --check` failing on the Python example in `references/api_surface.md` under
   Ruff 0.17, which now formats Markdown code blocks
 - Stale `notebooklm-py` 0.7.x references and an inaccurate project layout in the docs

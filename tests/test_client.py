@@ -175,6 +175,34 @@ async def test_generate_download_research_and_shortcuts(monkeypatch, client, tmp
 
 
 @pytest.mark.asyncio
+async def test_generate_validates_before_opening_a_session(monkeypatch, tmp_path):
+    def no_session():
+        raise AssertionError("a session must not open for invalid input")
+
+    monkeypatch.setattr(cli, "get_client", no_session)
+    existing = tmp_path / "deck.pdf"
+    existing.write_bytes(b"old")
+    cases = [
+        (
+            ["generate", "--notebook", "nb", "--type", "video", "--video-format", "short", "--video-style", "classic"],
+            "fixed",
+        ),
+        (["generate", "--notebook", "nb", "--type", "report", "--report-format", "custom"], "custom-prompt"),
+        (["generate", "--notebook", "nb", "--type", "slides", "--output", str(existing)], "exists"),
+        (
+            ["generate", "--notebook", "nb", "--type", "slides", "--output", "deck.docx", "--output-format", "docx"],
+            "not valid",
+        ),
+        (["podcast", "--notebook", "nb", "--output", str(existing)], "exists"),
+    ]
+    for argv, message in cases:
+        args = cli.build_parser().parse_args(argv)
+        handler = cli.cmd_podcast if argv[0] == "podcast" else cli.cmd_generate
+        with pytest.raises(UsageError, match=message):
+            await handler(args)
+
+
+@pytest.mark.asyncio
 async def test_dispatch_uses_command_table(monkeypatch):
     handler = AsyncMock(return_value={"status": "ok"})
     monkeypatch.setitem(cli.COMMANDS, "list", handler)
