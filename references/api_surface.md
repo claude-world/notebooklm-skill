@@ -1,10 +1,12 @@
 # notebooklm-py compatibility surface
 
-> Project contract: `notebooklm-py>=0.7.3,<0.8`
+> Project contract: `notebooklm-py>=0.8.5,<0.9`
 
 The private NotebookLM web API changes frequently. Application code should use
 `scripts/common.py` instead of calling `notebooklm-py` independently from each public
 surface. This document lists the upstream calls the compatibility layer relies on.
+`tests/test_upstream_contract.py` checks these signatures, enums, and result types
+against the installed release on every CI run.
 
 ## Client and authentication
 
@@ -21,7 +23,21 @@ async with NotebookLMClient.from_storage() as client:
 `NOTEBOOKLM_HOME`, and upstream auth configuration.
 
 The project normalizes upstream authentication exceptions to
-`AuthenticationRequired` with a safe message that never includes cookies.
+`AuthenticationRequired` with a safe message that never includes cookies. A missing
+session file raises `FileNotFoundError` upstream and is reported the same way.
+
+## Error contract (0.8.x)
+
+notebooklm-py 0.8 raises instead of returning sentinel values:
+
+- `artifacts.generate_*` raises `RateLimitError` or `RPCError` when NotebookLM refuses
+  a generation, instead of returning `GenerationStatus(status="failed")`;
+- `research.start` raises `DecodingError` instead of returning `None`;
+- expired sessions and HTTP 401/403 artifact downloads raise `AuthError`.
+
+The wrappers let refusals propagate as operation errors (CLI exit 1, MCP tool error,
+or a failed pipeline item) and map `AuthError` to `AUTH_REQUIRED` (CLI exit 4). The
+older `task_id` and `None` checks remain as defensive guards.
 
 ## Notebook and source APIs
 
@@ -71,8 +87,9 @@ generators and downloaders:
 All task-based generators return a `GenerationStatus`. The compatibility layer checks
 for `task_id`, waits with
 `client.artifacts.wait_for_completion(notebook_id, task_id, timeout=...)`, and accepts
-only a `completed` terminal state. Mind-map generation is synchronous in the pinned
-0.7.x contract and is handled separately.
+only a `completed` terminal state. `artifacts.generate_mind_map` remains the
+synchronous, note-backed mind-map path in 0.8.x and is handled separately; its
+`note_id` is the artifact ID used for downloads.
 
 Artifacts are listed with `client.artifacts.list(notebook_id, ArtifactType | None)`.
 Signed download URLs are deliberately omitted from serialized output. Downloads pass
@@ -82,29 +99,29 @@ symlinks, and refuse accidental overwrites.
 ### Type-specific enum options
 
 - audio: `AudioFormat`, `AudioLength`
-- video: `VideoFormat`, `VideoStyle`, plus custom `style_prompt`
+- video: `VideoFormat` (including `SHORT`), `VideoStyle`, plus custom `style_prompt`
 - slides: `SlideDeckFormat`, `SlideDeckLength`
 - report: `ReportFormat`, plus `custom_prompt`
-- quiz/flashcards: `QuizQuantity`, `QuizDifficulty`
+- quiz/flashcards: `QuizQuantity` (including `MORE`), `QuizDifficulty`
 - infographic: `InfographicOrientation`, `InfographicDetail`, `InfographicStyle`
 
-User-facing kebab-case values are validated and converted to upstream enums.
+User-facing kebab-case values are validated and converted to upstream enums. The
+wrappers reject upstream-invalid combinations before any network call: a custom
+video style needs `style_prompt`, cinematic videos take no `style_prompt`, and short
+videos have a fixed style.
 
 ## Research API
 
 The complete lifecycle is:
 
 ```python
-started = await client.research.start(
-    notebook_id, query=query, source="web", mode="fast"  # or "deep"
-)
-final = await client.research.wait_for_completion(
-    notebook_id, task_id=started.task_id, timeout=1800
-)
-imported = await client.research.import_sources(
-    notebook_id, started.task_id, final.sources[:max_sources]
-)
+started = await client.research.start(notebook_id, query=query, source="web", mode="deep")
+final = await client.research.wait_for_completion(notebook_id, task_id=started.task_id, timeout=1800)
+imported = await client.research.import_sources(notebook_id, started.task_id, final.sources[:max_sources])
 ```
+
+`mode` is `"fast"` or `"deep"`. `ResearchTask` and `ResearchSource` are attribute-only
+dataclasses in 0.8.x; the wrappers never subscript them.
 
 The wrapper validates terminal status, caps imported sources, and supports returning
 immediately with the task ID. It never reports a non-terminal or failed task as

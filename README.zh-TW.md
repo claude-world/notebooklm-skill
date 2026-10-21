@@ -13,7 +13,7 @@
 它能從網址、原始文字與本機檔案建立筆記本，回傳含引用資訊的來源導向回答，
 完成快速或深度網路研究，並生成或下載 NotebookLM 產出物。
 
-本專案以 `notebooklm-py` 0.7.x 為相容基準，包含：
+本專案以 `notebooklm-py` 0.8.x 與 FastMCP 4（MCP Python SDK 2.x）為基礎，包含：
 
 - JSON-first 核心 CLI；
 - 五個端到端研究 Pipeline；
@@ -23,6 +23,15 @@
 
 > 這是使用 NotebookLM Web API 的非官方整合。Google 可能隨時調整服務、
 > 配額、可用性或產出物行為。
+
+## 系統需求
+
+- Python 3.10 以上（CI 涵蓋 3.10 至 3.15）
+- 可使用 NotebookLM 的 Google 帳號
+- 一次性瀏覽器登入所需的 Chromium（由 `./install.sh` 安裝），或本機的
+  Google Chrome、Microsoft Edge
+- 選用：趨勢流程需要 `trend-pulse` 指令；`scripts/make_video.sh` 需要 `ffmpeg`
+  與 Poppler
 
 ## 快速開始
 
@@ -112,13 +121,13 @@ notebooklm-skill list-artifacts --notebook "研究" --type slides
 | 類型 | 預設下載格式 | 說明 |
 |---|---:|---|
 | `audio` | M4A | deep-dive、brief、critique 或 debate |
-| `video` | MP4 | explainer/brief 與多種視覺風格 |
+| `video` | MP4 | explainer、brief 或直式 short，多種視覺風格 |
 | `cinematic` | MP4 | 電影式影片流程 |
 | `slides` | PDF | 可下載 PDF 或 PPTX |
 | `report` | Markdown | briefing、study guide、blog 或 custom |
 | `study-guide` | Markdown | 學習指南捷徑 |
-| `quiz` | JSON | JSON、Markdown 或 HTML |
-| `flashcards` | JSON | JSON、Markdown 或 HTML |
+| `quiz` | JSON | JSON、Markdown 或 HTML；題數 fewer、standard 或 more |
+| `flashcards` | JSON | JSON、Markdown 或 HTML；卡片數 fewer、standard 或 more |
 | `mind-map` | JSON | 立即回傳生成結果 |
 | `infographic` | PNG | 可選方向、細節與風格 |
 | `data-table` | CSV | 結構化資料萃取 |

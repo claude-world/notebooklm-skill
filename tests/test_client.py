@@ -26,6 +26,15 @@ def test_parser_exposes_every_command_and_profile():
     assert (args.profile, args.command, args.title) == ("work", "create", "T")
 
 
+def test_parser_accepts_current_generation_choices():
+    parser = cli.build_parser()
+    video = parser.parse_args(["generate", "--notebook", "nb", "--type", "video", "--video-format", "short"])
+    assert cli._generation_options(video)["video_format"] == "short"
+    quiz = parser.parse_args(["generate", "--notebook", "nb", "--type", "quiz", "--quantity", "more"])
+    assert cli._generation_options(quiz)["quantity"] == "more"
+    assert parser.parse_args(["qa", "--notebook", "nb", "--quantity", "more"]).quantity == "more"
+
+
 @pytest.mark.asyncio
 async def test_create_reports_partial_and_strict(monkeypatch, client):
     use_client(monkeypatch, client)

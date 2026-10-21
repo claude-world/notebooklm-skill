@@ -14,7 +14,8 @@ NotebookLM. It creates notebooks from URLs, raw text, and local files; asks grou
 questions with citation metadata; completes fast or deep web research; and generates
 or downloads NotebookLM artifacts.
 
-The project is built around `notebooklm-py` 0.7.x and includes:
+The project is built on `notebooklm-py` 0.8.x and FastMCP 4 (MCP Python SDK 2.x),
+and includes:
 
 - a JSON-first core CLI;
 - five end-to-end research pipelines;
@@ -24,6 +25,15 @@ The project is built around `notebooklm-py` 0.7.x and includes:
 
 > This is an unofficial integration with NotebookLM's web API. Google can change the
 > service, availability, quotas, or artifact behavior without notice.
+
+## Requirements
+
+- Python 3.10 or newer (CI covers 3.10 through 3.15)
+- a Google account with access to NotebookLM
+- Chromium for the one-time browser login (installed by `./install.sh`), or a local
+  Google Chrome or Microsoft Edge
+- optional: the `trend-pulse` command for trend workflows, and `ffmpeg` plus Poppler
+  for `scripts/make_video.sh`
 
 ## Quick start
 
@@ -114,13 +124,13 @@ symlinks unless an explicit safe overwrite is requested with `--force`.
 | Type | Default download | Notes |
 |---|---:|---|
 | `audio` | M4A | deep-dive, brief, critique, or debate |
-| `video` | MP4 | explainer/brief and multiple visual styles |
+| `video` | MP4 | explainer, brief, or vertical short; multiple visual styles |
 | `cinematic` | MP4 | cinematic video workflow |
 | `slides` | PDF | PDF or PPTX |
 | `report` | Markdown | briefing, study guide, blog, or custom |
 | `study-guide` | Markdown | report shortcut |
-| `quiz` | JSON | JSON, Markdown, or HTML |
-| `flashcards` | JSON | JSON, Markdown, or HTML |
+| `quiz` | JSON | JSON, Markdown, or HTML; fewer, standard, or more questions |
+| `flashcards` | JSON | JSON, Markdown, or HTML; fewer, standard, or more cards |
 | `mind-map` | JSON | immediate generation result |
 | `infographic` | PNG | orientation, detail, and style options |
 | `data-table` | CSV | structured extraction |

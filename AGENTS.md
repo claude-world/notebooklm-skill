@@ -8,7 +8,8 @@ This project bridges Google NotebookLM's research capabilities with AI content g
 Feed it URLs, PDFs, or trending topics — it creates NotebookLM notebooks, runs deep research,
 and produces structured output: articles, social posts, podcasts, videos, slides, and more.
 
-Built on [notebooklm-py](https://pypi.org/project/notebooklm-py/) 0.7.x — pure async Python.
+Built on [notebooklm-py](https://pypi.org/project/notebooklm-py/) 0.8.x and FastMCP 4
+(MCP Python SDK 2.x) — pure async Python 3.10+.
 
 ## Authentication
 
@@ -86,13 +87,17 @@ infographic, data-table
 ## Project Structure
 
 ```
-scripts/                  CLI wrappers (notebooklm_client.py, pipeline.py)
+scripts/common.py         Shared notebooklm-py compatibility layer
+scripts/                  CLI entry points (notebooklm_client.py, pipeline.py,
+                          auth_helper.py, skill_installer.py)
 mcp_server/               FastMCP server (server.py, tools.py)
 SKILL.md                  Claude Code Skill definition
+references/               JSON contract, pipeline recipes, upstream API notes
 docs/                     Setup guides (EN + zh-TW)
-tests/                    Test suite
-output/                   Default output directory
+tests/                    Offline test suite, including upstream contract checks
 ```
+
+`generate-all` writes artifacts to `./notebooklm-output` unless `--output-dir` is set.
 
 ## Output Format
 

@@ -336,7 +336,7 @@ def _add_download_arguments(parser: argparse.ArgumentParser) -> None:
 def _add_generation_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--audio-format", choices=("deep-dive", "brief", "critique", "debate"))
     parser.add_argument("--audio-length", choices=("short", "default", "long"))
-    parser.add_argument("--video-format", choices=("explainer", "brief", "cinematic"))
+    parser.add_argument("--video-format", choices=("explainer", "brief", "cinematic", "short"))
     parser.add_argument(
         "--video-style",
         choices=(
@@ -357,7 +357,7 @@ def _add_generation_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--slide-length", choices=("default", "short"))
     parser.add_argument("--report-format", choices=("briefing-doc", "study-guide", "blog-post", "custom"))
     parser.add_argument("--custom-prompt", help="Required when --report-format custom")
-    parser.add_argument("--quantity", choices=("fewer", "standard"))
+    parser.add_argument("--quantity", choices=("fewer", "standard", "more"))
     parser.add_argument("--difficulty", choices=("easy", "medium", "hard"))
     parser.add_argument("--orientation", choices=("landscape", "portrait", "square"))
     parser.add_argument("--detail-level", choices=("concise", "standard", "detailed"))
@@ -480,7 +480,7 @@ def build_parser() -> argparse.ArgumentParser:
     qa.add_argument("--output-format", choices=("json", "markdown", "html"))
     qa.add_argument("--timeout", type=float)
     qa.add_argument("--force", action="store_true")
-    qa.add_argument("--quantity", choices=("fewer", "standard"))
+    qa.add_argument("--quantity", choices=("fewer", "standard", "more"))
     qa.add_argument("--difficulty", choices=("easy", "medium", "hard"))
     return parser
 

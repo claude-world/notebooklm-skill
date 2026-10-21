@@ -51,12 +51,8 @@ def _package_version() -> str:
 
 
 async def registered_tools() -> list[Any]:
-    """Return registered tools across the supported FastMCP 2.x/3.x APIs."""
-    list_tools = getattr(mcp, "list_tools", None)
-    if list_tools is not None:
-        return list(await list_tools())
-    legacy_server: Any = mcp
-    return list((await legacy_server.get_tools()).values())
+    """Return the tools registered on the FastMCP 4.x server."""
+    return list(await mcp.list_tools())
 
 
 async def _invoke(operation: Awaitable[dict[str, Any]]) -> dict[str, Any]:

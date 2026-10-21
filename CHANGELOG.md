@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-10-21
+
+### Changed
+
+- Upgraded to `notebooklm-py` 0.8.5 (`>=0.8.5,<0.9`) and its 0.8 error contract: generation
+  refusals and research start failures now surface as operation errors, and expired or
+  signed-out sessions are reported as `AUTH_REQUIRED` more reliably
+- Upgraded the MCP server to FastMCP 4 (`fastmcp>=4.1,<5`), which runs on the MCP Python
+  SDK 2.x; MCP tool names, parameters, and results are unchanged
+- Raised runtime floors to tested versions (`python-dotenv>=1.1`, `httpx>=0.28`,
+  `feedparser>=6.0.12`) and refreshed development tools (mypy 2, pytest 9, pytest-asyncio
+  1.3+, pytest-cov 7, Ruff 0.17, Twine 7, build 1.3+)
+- Pinned Ruff to one minor series so a new Ruff release cannot reformat the code base
+  between CI runs
+- CI now tests Python 3.10 through 3.15, smoke-tests the built wheel's MCP server over stdio
+  and its authentication error contract, and uses current GitHub Actions (checkout v7,
+  setup-python v7, CodeQL v4 without autobuild, action-gh-release v3)
+- Dependabot now runs monthly and groups minor and patch updates
+- The build backend now requires setuptools 77 or newer, the first release that supports the
+  PEP 639 license metadata the project already declares
+
+### Added
+
+- `--video-format short` (vertical short video) and `--quantity more` (larger quizzes and
+  flashcard sets) CLI choices; MCP `nlm_generate` accepts the same option values
+- Upfront validation that rejects `--video-style` and `--style-prompt` for short videos with
+  exit code 2 instead of an upstream error
+- Offline upstream contract tests for every `notebooklm-py` signature, enum, and result type
+  the compatibility layer relies on, plus MCP tool-schema, MCP client round-trip, and
+  SKILL.md frontmatter tests
+- `license` and `compatibility` fields in the SKILL.md frontmatter
+- Python 3.15 classifier
+
+### Fixed
+
+- `ruff format --check` failing on the Python example in `references/api_surface.md` under
+  Ruff 0.17, which now formats Markdown code blocks
+- Stale `notebooklm-py` 0.7.x references and an inaccurate project layout in the docs
+- Coverage data files are no longer left untracked in the working tree
+
 ## [1.3.0] — 2026-07-18
 
 ### Added
@@ -40,6 +80,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Downloads reject symlinks and existing files by default
 - Notebook deletion requires explicit confirmation on CLI and MCP surfaces
 - Local file and HTTP MCP trust boundaries are now documented
+
+## [1.2.2] — 2026-03-21
+
+### Changed
+
+- Disabled the `infographic` artifact type across the CLI, pipelines, and MCP server because
+  its downloads were unreliable (restored in 1.3.0)
 
 ## [1.2.1] — 2026-03-17
 
@@ -129,7 +176,9 @@ Initial public release of notebooklm-skill.
 - `e75f8ea` docs: full zh-TW localization, doc fixes, video synthesis tool
 - `0f8edce` docs: add bilingual README and SETUP (EN + zh-TW)
 
+[1.4.0]: https://github.com/claude-world/notebooklm-skill/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/claude-world/notebooklm-skill/compare/v1.2.2...v1.3.0
+[1.2.2]: https://github.com/claude-world/notebooklm-skill/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/claude-world/notebooklm-skill/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/claude-world/notebooklm-skill/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/claude-world/notebooklm-skill/compare/v1.0.1...v1.1.0

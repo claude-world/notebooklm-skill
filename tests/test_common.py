@@ -274,6 +274,25 @@ def test_build_generation_kwargs_and_enums():
     assert video["style_prompt"] == "drawn"
 
 
+def test_short_video_and_larger_quiz_options():
+    short = common.build_generation_kwargs("video", options={"video_format": "short"})
+    assert short["video_format"].name == "SHORT"
+    auto = common.build_generation_kwargs("video", options={"video_format": "short", "video_style": "auto-select"})
+    assert auto["video_style"].name == "AUTO_SELECT"
+    for options in (
+        {"video_format": "short", "video_style": "classic"},
+        {"video_format": "short", "video_style": "custom", "style_prompt": "drawn"},
+    ):
+        with pytest.raises(UsageError, match="fixed style"):
+            common.build_generation_kwargs("video", options=options)
+    with pytest.raises(UsageError, match="cinematic"):
+        common.build_generation_kwargs(
+            "video", options={"video_format": "cinematic", "video_style": "custom", "style_prompt": "drawn"}
+        )
+    assert common.build_generation_kwargs("quiz", options={"quantity": "more"})["quantity"].name == "MORE"
+    assert common.build_generation_kwargs("flashcards", options={"quantity": "more"})["quantity"].name == "MORE"
+
+
 @pytest.mark.asyncio
 async def test_generate_artifact_lifecycles(client):
     detached = await common.generate_artifact(client, "nb", "audio", wait=False)

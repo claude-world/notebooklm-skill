@@ -12,6 +12,10 @@ build/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 *.egg
 
 # Playwright

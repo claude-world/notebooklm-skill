@@ -1,6 +1,6 @@
 # Pipeline recipes
 
-These examples use only commands implemented by version 1.3.x. All results are JSON;
+These examples use only commands implemented by version 1.4.x. All results are JSON;
 use `jq` or another JSON parser instead of scraping stderr.
 
 ## Sources to article

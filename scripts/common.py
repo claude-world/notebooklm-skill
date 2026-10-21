@@ -499,6 +499,9 @@ def build_generation_kwargs(
     video_format = kwargs.get("video_format")
     if video_format is not None and getattr(video_format, "name", "") == "CINEMATIC" and style_prompt:
         raise UsageError("A cinematic video does not support --style-prompt.")
+    if video_format is not None and getattr(video_format, "name", "") == "SHORT":
+        if style_prompt or getattr(video_style, "name", "AUTO_SELECT") != "AUTO_SELECT":
+            raise UsageError("A short video has a fixed style; --video-style and --style-prompt are not supported.")
     return kwargs
 
 
