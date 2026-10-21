@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 from mcp_server import server
@@ -37,15 +38,58 @@ async def test_registered_tool_contract():
 
 
 @pytest.mark.asyncio
-async def test_registered_tools_fastmcp_v2_compatibility(monkeypatch):
-    tool = MagicMock(name="tool")
+async def test_tool_parameter_contract():
+    expected = {
+        "nlm_create_notebook": (["title"], ["title", "sources", "text_sources", "file_sources"]),
+        "nlm_list": ([], []),
+        "nlm_delete": (["notebook"], ["notebook", "confirm"]),
+        "nlm_add_source": (["notebook"], ["notebook", "url", "text", "text_title", "file_path"]),
+        "nlm_ask": (["notebook", "query"], ["notebook", "query"]),
+        "nlm_summarize": (["notebook"], ["notebook"]),
+        "nlm_list_sources": (["notebook"], ["notebook"]),
+        "nlm_generate": (
+            ["notebook", "type"],
+            ["notebook", "type", "lang", "instructions", "source_ids", "options", "wait", "timeout"],
+        ),
+        "nlm_download": (
+            ["notebook", "type", "output_path"],
+            ["notebook", "type", "output_path", "output_format", "artifact_id", "force"],
+        ),
+        "nlm_list_artifacts": (["notebook"], ["notebook", "type"]),
+        "nlm_research": (
+            ["notebook", "query"],
+            ["notebook", "query", "mode", "wait", "import_results", "max_sources", "timeout"],
+        ),
+        "nlm_research_pipeline": (
+            ["sources", "questions"],
+            ["sources", "questions", "output_format", "title"],
+        ),
+        "nlm_trend_research": ([], ["geo", "count", "platform"]),
+    }
+    tools = {tool.name: tool for tool in await server.registered_tools()}
+    for name, (required, properties) in expected.items():
+        schema = tools[name].parameters
+        assert sorted(schema.get("required", [])) == sorted(required), name
+        assert list(schema.get("properties", {})) == properties, name
+    research = tools["nlm_research"].parameters["properties"]
+    assert research["mode"]["enum"] == ["fast", "deep"] and research["mode"]["default"] == "fast"
+    assert tools["nlm_delete"].parameters["properties"]["confirm"]["default"] is False
 
-    class LegacyServer:
-        async def get_tools(self):
-            return {"tool": tool}
 
-    monkeypatch.setattr(server, "mcp", LegacyServer())
-    assert await server.registered_tools() == [tool]
+@pytest.mark.asyncio
+async def test_mcp_client_round_trip_and_tool_errors(monkeypatch):
+    monkeypatch.setattr(server, "list_notebooks", AsyncMock(return_value={"status": "ok", "notebooks": [], "count": 0}))
+    async with Client(server.mcp) as client:
+        assert client.server_info.name == "notebooklm"
+        assert client.server_info.version == server._package_version()
+        assert len(await client.list_tools()) == 13
+        listed = await client.call_tool("nlm_list", {})
+        assert listed.structured_content == {"status": "ok", "notebooks": [], "count": 0}
+        confirmation = await client.call_tool("nlm_delete", {"notebook": "nb"})
+        assert confirmation.structured_content["status"] == "requires_confirmation"
+        failed = await client.call_tool("nlm_ask", {"notebook": "nb", "query": " "}, raise_on_error=False)
+        assert failed.is_error
+        assert "Query cannot be empty" in failed.content[0].text
 
 
 @pytest.mark.asyncio

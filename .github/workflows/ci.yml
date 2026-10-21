@@ -15,11 +15,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.12", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -50,11 +50,11 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: pip
 
       - name: Build and inspect distributions
@@ -74,14 +74,44 @@ jobs:
           /tmp/notebooklm-wheel-test/bin/notebooklm-auth --help >/dev/null
           /tmp/notebooklm-wheel-test/bin/notebooklm-install-skill --dry-run --target /tmp/nlm-skill-install
 
+      - name: Verify the authentication error contract without a session
+        run: |
+          set +e
+          NOTEBOOKLM_HOME="$(mktemp -d)" /tmp/notebooklm-wheel-test/bin/notebooklm-skill list > /tmp/nlm-auth.json
+          code=$?
+          set -e
+          cat /tmp/nlm-auth.json
+          test "$code" -eq 4
+          grep -q '"code": "AUTH_REQUIRED"' /tmp/nlm-auth.json
+
+      - name: Smoke-test the MCP server over stdio
+        run: |
+          /tmp/notebooklm-wheel-test/bin/python - <<'PY'
+          import asyncio
+
+          from fastmcp import Client
+          from fastmcp.client.transports import StdioTransport
+
+
+          async def main() -> None:
+              transport = StdioTransport(command="/tmp/notebooklm-wheel-test/bin/notebooklm-mcp", args=[])
+              async with Client(transport) as client:
+                  names = sorted(tool.name for tool in await client.list_tools())
+              assert len(names) == 13, names
+              print("MCP stdio tools:", ", ".join(names))
+
+
+          asyncio.run(main())
+          PY
+
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
       - name: Validate configuration and documentation contract
         run: |
@@ -105,7 +135,7 @@ jobs:
               files.extend(root.rglob('*.md') if root.is_dir() else [root])
           stale = {
               'notebooklm-py v0.3.4', 'uvx notebooklm login', 'threads_api.py',
-              'generate audio --notebook', 'research-poll', 'mcp-server/',
+              'generate audio --notebook', 'research-poll', 'mcp-server/', '0.7.x',
           }
           hits = [(str(path), token) for path in files for token in stale if token in path.read_text()]
           assert not hits, f'stale documentation references: {hits}'

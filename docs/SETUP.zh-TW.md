@@ -1,6 +1,6 @@
 # 安裝指南
 
-本指南會安裝 `notebooklm-skill` 1.3.x、驗證 NotebookLM profile，並設定
+本指南會安裝 `notebooklm-skill` 1.4.x、驗證 NotebookLM profile，並設定
 Claude Code Skill 或 MCP Server。
 
 ## 系統需求

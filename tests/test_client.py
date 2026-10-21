@@ -26,6 +26,15 @@ def test_parser_exposes_every_command_and_profile():
     assert (args.profile, args.command, args.title) == ("work", "create", "T")
 
 
+def test_parser_accepts_current_generation_choices():
+    parser = cli.build_parser()
+    video = parser.parse_args(["generate", "--notebook", "nb", "--type", "video", "--video-format", "short"])
+    assert cli._generation_options(video)["video_format"] == "short"
+    quiz = parser.parse_args(["generate", "--notebook", "nb", "--type", "quiz", "--quantity", "more"])
+    assert cli._generation_options(quiz)["quantity"] == "more"
+    assert parser.parse_args(["qa", "--notebook", "nb", "--quantity", "more"]).quantity == "more"
+
+
 @pytest.mark.asyncio
 async def test_create_reports_partial_and_strict(monkeypatch, client):
     use_client(monkeypatch, client)
@@ -163,6 +172,34 @@ async def test_generate_download_research_and_shortcuts(monkeypatch, client, tmp
     qa = await cli.cmd_qa(cli.build_parser().parse_args(["qa", "--notebook", "nb-1"]))
     assert podcast["action"] == "podcast"
     assert qa["action"] == "qa"
+
+
+@pytest.mark.asyncio
+async def test_generate_validates_before_opening_a_session(monkeypatch, tmp_path):
+    def no_session():
+        raise AssertionError("a session must not open for invalid input")
+
+    monkeypatch.setattr(cli, "get_client", no_session)
+    existing = tmp_path / "deck.pdf"
+    existing.write_bytes(b"old")
+    cases = [
+        (
+            ["generate", "--notebook", "nb", "--type", "video", "--video-format", "short", "--video-style", "classic"],
+            "fixed",
+        ),
+        (["generate", "--notebook", "nb", "--type", "report", "--report-format", "custom"], "custom-prompt"),
+        (["generate", "--notebook", "nb", "--type", "slides", "--output", str(existing)], "exists"),
+        (
+            ["generate", "--notebook", "nb", "--type", "slides", "--output", "deck.docx", "--output-format", "docx"],
+            "not valid",
+        ),
+        (["podcast", "--notebook", "nb", "--output", str(existing)], "exists"),
+    ]
+    for argv, message in cases:
+        args = cli.build_parser().parse_args(argv)
+        handler = cli.cmd_podcast if argv[0] == "podcast" else cli.cmd_generate
+        with pytest.raises(UsageError, match=message):
+            await handler(args)
 
 
 @pytest.mark.asyncio

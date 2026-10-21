@@ -89,6 +89,18 @@ async def test_generate_download_and_research(monkeypatch, client, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_generate_validates_options_before_opening_a_session(monkeypatch):
+    def no_session():
+        raise AssertionError("a session must not open for invalid input")
+
+    monkeypatch.setattr(tools, "get_client", no_session)
+    with pytest.raises(UsageError, match="fixed style"):
+        await tools.generate_artifact("nb-1", "video", options={"video_format": "short", "video_style": "anime"})
+    with pytest.raises(UsageError, match="Unknown"):
+        await tools.generate_artifact("nb-1", "podcast")
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("output_format", ["article", "thread", "report"])
 async def test_research_pipeline_formats(monkeypatch, client, output_format):
     use_client(monkeypatch, client)

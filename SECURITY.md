@@ -6,8 +6,8 @@ Security fixes are provided for the latest released minor version.
 
 | Version | Supported |
 |---|---|
-| 1.3.x | Yes |
-| 1.2.x and older | No |
+| 1.4.x | Yes |
+| 1.3.x and older | No |
 
 ## Security model
 

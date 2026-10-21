@@ -1,6 +1,6 @@
 # Setup guide
 
-This guide installs `notebooklm-skill` 1.3.x, authenticates a NotebookLM profile,
+This guide installs `notebooklm-skill` 1.4.x, authenticates a NotebookLM profile,
 and configures the Claude Code Skill or MCP server.
 
 ## Requirements

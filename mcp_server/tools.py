@@ -9,6 +9,7 @@ from typing import Any
 from scripts.common import (
     ARTIFACT_SPECS,
     UsageError,
+    build_generation_kwargs,
     fetch_trends,
     get_client,
     ingest_sources,
@@ -185,6 +186,13 @@ async def generate_artifact(
     timeout: float | None = None,
 ) -> dict[str, Any]:
     """Generate any canonical artifact type with validated options."""
+    build_generation_kwargs(
+        artifact_type,
+        language=lang,
+        instructions=instructions,
+        source_ids=source_ids,
+        options=options,
+    )
     async with get_client() as client:
         notebook = await resolve_notebook(client, name_or_id)
         result = await core_generate_artifact(

@@ -8,6 +8,10 @@ description: >
   infographics, and data tables. Use when a user asks for NotebookLM, cited source
   analysis, research-to-content workflows, podcasts, slides, study material,
   artifact generation, RSS digests, or trend research.
+license: MIT
+compatibility: >
+  Requires Python 3.10+, the notebooklm-skill package (pip install or uvx), network
+  access, and a Google account signed in to NotebookLM with notebooklm-auth setup.
 ---
 
 # NotebookLM Research
@@ -121,8 +125,10 @@ notebooklm-skill podcast --notebook NOTEBOOK_ID --output podcast.m4a
 notebooklm-skill qa --notebook NOTEBOOK_ID --difficulty hard --output quiz.json
 ```
 
-Generation supports per-type options. Inspect the live contract before composing an
-unfamiliar call:
+Generation supports per-type options, including `--video-format short` for a
+vertical short video (fixed style, so no `--video-style` or `--style-prompt`) and
+`--quantity more` for larger quizzes and flashcard sets. Inspect the live contract
+before composing an unfamiliar call:
 
 ```bash
 notebooklm-skill generate --help
